@@ -76,7 +76,7 @@ const ProductCard = ({ product }) => {
       <div className="position-relative">
         <Card.Img 
           variant="top" 
-          src={product.image} 
+          src={product.image_url || product.image} 
           alt={product.name}
           style={{ height: '120px', objectFit: 'cover' }}
           onError={(e) => {

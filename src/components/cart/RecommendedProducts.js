@@ -8,21 +8,32 @@ const RecommendedProducts = () => {
   const [recommendations, setRecommendations] = useState([]);
 
   useEffect(() => {
-    if (cart.length === 0) return;
+    const loadRecommendations = async () => {
+      if (cart.length === 0) return;
 
-    // Get categories from cart items
-    const cartCategories = [...new Set(cart.map(item => item.category))];
-    
-    // Get all products and filter recommendations
-    const allProducts = productService.getAllProducts();
-    const recommended = allProducts
-      .filter(product => 
-        cartCategories.includes(product.category) && 
-        !cart.some(cartItem => cartItem.id === product.id)
-      )
-      .slice(0, 4);
-    
-    setRecommendations(recommended);
+      try {
+        // Get categories from cart items
+        const cartCategories = [...new Set(cart.map(item => item.category_name || item.category))];
+        
+        // Get all products and filter recommendations
+        const response = await productService.getAllProducts();
+        if (response?.success && Array.isArray(response.products)) {
+          const recommended = response.products
+            .filter(product => 
+              cartCategories.includes(product.category_name || product.category) && 
+              !cart.some(cartItem => cartItem.id === product.id)
+            )
+            .slice(0, 4);
+          
+          setRecommendations(recommended);
+        }
+      } catch (error) {
+        console.error('Error loading recommendations:', error);
+        setRecommendations([]);
+      }
+    };
+
+    loadRecommendations();
   }, [cart]);
 
   if (recommendations.length === 0) return null;
@@ -38,7 +49,7 @@ const RecommendedProducts = () => {
             <Col key={product.id} xs={6} md={3} className="mb-3">
               <div className="text-center">
                 <img
-                  src={product.image}
+                  src={product.image_url || product.image}
                   alt={product.name}
                   className="w-100 rounded mb-2"
                   style={{ height: '100px', objectFit: 'cover' }}

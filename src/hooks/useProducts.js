@@ -11,11 +11,11 @@ export const useProducts = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const productsData = productService.getAllProducts();
-        const categoriesData = productService.getAllCategories();
+        const productsResponse = await productService.getAllProducts();
+        const categoriesResponse = await productService.getAllCategories();
         
-        setProducts(productsData);
-        setCategories(categoriesData);
+        setProducts(productsResponse?.products || []);
+        setCategories(categoriesResponse?.categories || []);
       } catch (err) {
         setError(err.message);
       } finally {

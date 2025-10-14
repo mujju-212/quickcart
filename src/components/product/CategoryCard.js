@@ -41,7 +41,7 @@ const CategoryCard = ({ category }) => {
   }}
 >
   <img 
-    src={category.image} 
+    src={category.image_url || category.image} 
     alt={category.name}
     className="w-100 h-100"
     style={{ objectFit: 'cover' }}

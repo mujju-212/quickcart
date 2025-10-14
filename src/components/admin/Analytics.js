@@ -20,35 +20,41 @@ const Analytics = () => {
     loadAnalytics();
   }, []);
 
-  const loadAnalytics = () => {
-    // Get order statistics
-    const orderStats = orderService.getOrderStats();
-    const products = productService.getAllProducts();
-    const orders = orderService.getAllOrders();
-    
-    // Calculate top selling products (mock data for demo)
-    const topSellingProducts = products.slice(0, 5).map((product, index) => ({
-      ...product,
-      soldQuantity: Math.floor(Math.random() * 100) + 10,
-      revenue: (Math.floor(Math.random() * 100) + 10) * product.price
-    }));
+  const loadAnalytics = async () => {
+    try {
+      // Get order statistics
+      const orderStats = orderService.getOrderStats();
+      const productsResponse = await productService.getAllProducts();
+      const orders = orderService.getAllOrders();
+      
+      const products = productsResponse?.products || [];
+      
+      // Calculate top selling products (mock data for demo)
+      const topSellingProducts = products.slice(0, 5).map((product, index) => ({
+        ...product,
+        soldQuantity: Math.floor(Math.random() * 100) + 10,
+        revenue: (Math.floor(Math.random() * 100) + 10) * product.price
+      }));
 
-    // Recent activity (mock data)
-    const activity = [
-      { type: 'order', message: 'New order #BLK001 placed', time: '2 minutes ago' },
-      { type: 'product', message: 'Product "Fresh Apples" updated', time: '15 minutes ago' },
-      { type: 'user', message: 'New user registered', time: '1 hour ago' },
-      { type: 'order', message: 'Order #BLK002 delivered', time: '2 hours ago' }
-    ];
+      // Recent activity (mock data)
+      const activity = [
+        { type: 'order', message: 'New order #BLK001 placed', time: '2 minutes ago' },
+        { type: 'product', message: 'Product "Fresh Apples" updated', time: '15 minutes ago' },
+        { type: 'user', message: 'New user registered', time: '1 hour ago' },
+        { type: 'order', message: 'Order #BLK002 delivered', time: '2 hours ago' }
+      ];
 
-    setStats({
-      ...orderStats,
-      totalProducts: products.length,
-      totalUsers: 1234 // Mock data
-    });
-    
-    setTopProducts(topSellingProducts);
-    setRecentActivity(activity);
+      setStats({
+        ...orderStats,
+        totalProducts: products.length,
+        totalUsers: 1234 // Mock data
+      });
+      
+      setTopProducts(topSellingProducts);
+      setRecentActivity(activity);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+    }
   };
 
   const StatCard = ({ title, value, icon, color = 'primary', change }) => (

@@ -21,7 +21,7 @@ const ProductDetails = () => {
 
   // Sample additional images for the product
   const productImages = [
-    product?.image,
+    product?.image_url || product?.image,
     'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop',
     'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop',
     'https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=400&h=400&fit=crop'
@@ -152,7 +152,7 @@ const ProductDetails = () => {
             {/* Main Image */}
             <div className="main-image mb-3 position-relative">
               <img 
-                src={productImages[selectedImage] || product.image} 
+                src={productImages[selectedImage] || product.image_url || product.image} 
                 alt={product.name}
                 className="w-100 rounded shadow"
                 style={{ height: '400px', objectFit: 'cover', cursor: 'zoom-in' }}

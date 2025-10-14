@@ -15,34 +15,55 @@ const SearchResults = () => {
   const category = searchParams.get('category');
 
   useEffect(() => {
-    console.log('Search query:', query);
-    console.log('Category filter:', category);
-    
-    // Get all products from service (includes custom additions)
-    const allProducts = productService.getAllProducts();
-    let filteredProducts = [];
-    
-    if (query) {
-      // Search by name or description
-      filteredProducts = allProducts.filter(product =>
-        product.name.toLowerCase().includes(query.toLowerCase()) ||
-        product.description.toLowerCase().includes(query.toLowerCase()) ||
-        product.category.toLowerCase().includes(query.toLowerCase())
-      );
-    } else if (category) {
-      // Filter by category
-      if (category === 'all') {
-        filteredProducts = allProducts; // Show all products
-      } else {
-        filteredProducts = allProducts.filter(product => 
-          product.category === category
-        );
+    const performSearch = async () => {
+      setLoading(true);
+      try {
+        console.log('Search query:', query);
+        console.log('Category filter:', category);
+        
+        // Get all products from API
+        const response = await productService.getAllProducts();
+        console.log('📦 API Response:', response);
+        
+        if (!response || !response.success || !Array.isArray(response.products)) {
+          console.error('❌ Invalid API response:', response);
+          setResults([]);
+          setLoading(false);
+          return;
+        }
+        
+        const allProducts = response.products;
+        let filteredProducts = [];
+        
+        if (query) {
+          // Search by name or description
+          filteredProducts = allProducts.filter(product =>
+            product.name.toLowerCase().includes(query.toLowerCase()) ||
+            product.description.toLowerCase().includes(query.toLowerCase()) ||
+            (product.category_name && product.category_name.toLowerCase().includes(query.toLowerCase()))
+          );
+        } else if (category) {
+          // Filter by category
+          if (category === 'all') {
+            filteredProducts = allProducts; // Show all products
+          } else {
+            filteredProducts = allProducts.filter(product => 
+              product.category_name === category || product.category === category
+            );
+          }
+        }
+        
+        console.log('Filtered results:', filteredProducts.length);
+        setResults(filteredProducts);
+      } catch (error) {
+        console.error('❌ Search error:', error);
+        setResults([]);
+      } finally {
+        setLoading(false);
       }
-    }
-    
-    console.log('Filtered results:', filteredProducts.length);
-    setResults(filteredProducts);
-    setLoading(false);
+    };
+
+    performSearch();
 
     // Listen for real-time product updates from admin
     const handleProductsUpdate = (event) => {
@@ -128,7 +149,7 @@ const SearchResults = () => {
               >
                 <div className="position-relative">
                   <img 
-                    src={product.image} 
+                    src={product.image_url || product.image} 
                     alt={product.name}
                     className="card-img-top"
                     style={{ height: '180px', objectFit: 'cover' }}
