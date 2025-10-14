@@ -244,3 +244,42 @@ def delete_product(product_id):
     except Exception as e:
         logger.error(f"Error deleting product {product_id}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@product_bp.route('/<int:product_id>/related', methods=['GET'])
+def get_related_products(product_id):
+    """Get related products for a specific product"""
+    try:
+        limit = request.args.get('limit', default=4, type=int)
+        
+        # First get the current product's category
+        current_product_query = """
+            SELECT category_id FROM products 
+            WHERE id = %s AND status = 'active'
+        """
+        current_product = db.execute_query_one(current_product_query, (product_id,))
+        
+        if not current_product:
+            return jsonify({"success": False, "error": "Product not found"}), 404
+        
+        category_id = dict(current_product)['category_id']
+        
+        # Get related products from the same category, excluding the current product
+        query = """
+            SELECT p.*, c.name as category_name 
+            FROM products p 
+            LEFT JOIN categories c ON p.category_id = c.id 
+            WHERE p.category_id = %s AND p.id != %s AND p.status = 'active'
+            ORDER BY RANDOM()
+            LIMIT %s
+        """
+        related_products = db.execute_query(query, (category_id, product_id, limit), fetch=True)
+        
+        return jsonify({
+            "success": True,
+            "products": [dict(product) for product in related_products],
+            "count": len(related_products)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching related products for {product_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

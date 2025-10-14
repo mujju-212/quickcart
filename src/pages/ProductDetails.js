@@ -31,16 +31,16 @@ const ProductDetails = () => {
     const loadProduct = async () => {
       setLoading(true);
       try {
-        const productData = productService.getProductById(parseInt(id));
-        if (!productData) {
+        const productResponse = await productService.getProductById(parseInt(id));
+        if (!productResponse || !productResponse.success) {
           navigate('/');
           return;
         }
         
-        const related = productService.getRelatedProducts(parseInt(id));
+        const relatedResponse = await productService.getRelatedProducts(parseInt(id));
         
-        setProduct(productData);
-        setRelatedProducts(related);
+        setProduct(productResponse.product);
+        setRelatedProducts(relatedResponse.products || []);
       } catch (error) {
         console.error('Error loading product:', error);
         navigate('/');

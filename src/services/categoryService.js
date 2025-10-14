@@ -3,6 +3,19 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 class CategoryService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    // Clear any old localStorage data to ensure we use API
+    this.clearOldData();
+  }
+
+  clearOldData() {
+    // Remove old localStorage category data to force API usage
+    const keysToRemove = ['categories'];
+    keysToRemove.forEach(key => {
+      if (localStorage.getItem(key)) {
+        localStorage.removeItem(key);
+        console.log(`🗑️ Cleared old ${key} from localStorage`);
+      }
+    });
   }
 
   async makeRequest(endpoint, options = {}) {

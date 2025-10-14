@@ -3,6 +3,19 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 class ProductService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    // Clear any old localStorage data to ensure we use API
+    this.clearOldData();
+  }
+
+  clearOldData() {
+    // Remove old localStorage product data to force API usage
+    const keysToRemove = ['products', 'categories', 'featuredProducts'];
+    keysToRemove.forEach(key => {
+      if (localStorage.getItem(key)) {
+        localStorage.removeItem(key);
+        console.log(`🗑️ Cleared old ${key} from localStorage`);
+      }
+    });
   }
 
   async makeRequest(endpoint, options = {}) {
@@ -45,10 +58,10 @@ class ProductService {
   async getProductById(id) {
     try {
       const response = await this.makeRequest(`/products/${id}`);
-      return response.product;
+      return response; // Return full response object
     } catch (error) {
       console.error('Error fetching product:', error);
-      return null;
+      return { success: false, product: null, error: error.message };
     }
   }
 
@@ -171,10 +184,10 @@ class ProductService {
   async getRelatedProducts(productId, limit = 4) {
     try {
       const response = await this.makeRequest(`/products/${productId}/related?limit=${limit}`);
-      return response.products || [];
+      return response; // Return full response object
     } catch (error) {
       console.error('Error fetching related products:', error);
-      return [];
+      return { success: false, products: [], error: error.message };
     }
   }
 }
