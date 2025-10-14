@@ -37,7 +37,7 @@ def create_app():
     
     # Enable CORS for all routes with more permissive settings
     CORS(app, 
-         origins=["http://localhost:3000"],
+         origins=["http://localhost:3000", "http://localhost:3001"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],
          supports_credentials=True)
