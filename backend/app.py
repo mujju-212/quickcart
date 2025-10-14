@@ -32,8 +32,15 @@ def create_app():
     # Load configuration
     app.config.from_object(Config)
     
-    # Enable CORS for all routes
-    CORS(app, origins=["http://localhost:3000"])
+    # Disable automatic trailing slash redirect
+    app.url_map.strict_slashes = False
+    
+    # Enable CORS for all routes with more permissive settings
+    CORS(app, 
+         origins=["http://localhost:3000"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"],
+         supports_credentials=True)
     
     # Test database connection on startup
     with app.app_context():

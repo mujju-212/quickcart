@@ -130,10 +130,10 @@ class CategoryService {
   async getActiveCategories() {
     try {
       const response = await this.makeRequest('/categories?status=active');
-      return response.categories || [];
+      return response; // Return full response object
     } catch (error) {
       console.error('Error fetching active categories:', error);
-      return [];
+      return { success: false, categories: [], error: error.message };
     }
   }
 

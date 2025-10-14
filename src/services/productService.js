@@ -35,10 +35,10 @@ class ProductService {
   async getAllProducts() {
     try {
       const response = await this.makeRequest('/products');
-      return response.products || [];
+      return response; // Return full response object
     } catch (error) {
       console.error('Error fetching products:', error);
-      return [];
+      return { success: false, products: [], error: error.message };
     }
   }
 

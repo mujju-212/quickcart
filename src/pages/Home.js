@@ -41,45 +41,75 @@ const Home = () => {
   ];
 
   useEffect(() => {
-    const loadCategories = () => {
-      // Get the current categories (includes any admin changes)
-      // The categoryService will handle initialization automatically in its constructor
-      const allCategories = categoryService.getActiveCategories();
-      
-      console.log('🏠 Home page loading categories:', allCategories.length);
-      console.log('Categories:', allCategories);
-      
-      setCategories(allCategories);
+    const loadCategories = async () => {
+      try {
+        console.log('🏠 Home page loading categories...');
+        const response = await categoryService.getActiveCategories();
+        console.log('📂 Categories response:', response);
+        
+        if (response && response.categories) {
+          setCategories(response.categories);
+          console.log('📂 Categories loaded:', response.categories.length);
+        } else {
+          console.error('❌ Invalid categories response:', response);
+          setCategories([]);
+        }
+      } catch (error) {
+        console.error('❌ Error loading categories:', error);
+        setCategories([]);
+      }
     };
 
-    const loadProducts = () => {
-      console.log('🏠 Home page loading products...');
-      const allProducts = productService.getAllProducts();
-      console.log('📦 Products from service:', allProducts.length);
-      
-      // Set all products
-      setProducts(allProducts);
-      
-      // Create popular products (first 12 products)
-      setPopularProducts(allProducts.slice(0, 12));
-      
-      // Group products by category
-      const productsByCategory = {};
-      allProducts.forEach(product => {
-        if (!productsByCategory[product.category]) {
-          productsByCategory[product.category] = [];
+    const loadProducts = async () => {
+      try {
+        console.log('🏠 Home page loading products...');
+        const response = await productService.getAllProducts();
+        console.log('📦 Products response:', response);
+        
+        if (response && response.products && Array.isArray(response.products)) {
+          const allProducts = response.products;
+          console.log('📦 Products loaded:', allProducts.length);
+          
+          // Set all products
+          setProducts(allProducts);
+          
+          // Create popular products (first 12 products)
+          setPopularProducts(allProducts.slice(0, 12));
+          
+          // Group products by category
+          const productsByCategory = {};
+          allProducts.forEach(product => {
+            const categoryName = product.category_name || product.category || 'Uncategorized';
+            if (!productsByCategory[categoryName]) {
+              productsByCategory[categoryName] = [];
+            }
+            productsByCategory[categoryName].push(product);
+          });
+          
+          setCategoryProducts(productsByCategory);
+          console.log('📦 Products grouped by category:', Object.keys(productsByCategory));
+        } else {
+          console.error('❌ Invalid products response:', response);
+          setProducts([]);
+          setPopularProducts([]);
+          setCategoryProducts({});
         }
-        productsByCategory[product.category].push(product);
-      });
-      
-      setCategoryProducts(productsByCategory);
-      console.log('📦 Products grouped by category:', Object.keys(productsByCategory));
+      } catch (error) {
+        console.error('❌ Error loading products:', error);
+        setProducts([]);
+        setPopularProducts([]);
+        setCategoryProducts({});
+      }
     };
 
     // Initial load
-    loadCategories();
-    loadProducts();
-    setLoading(false);
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([loadCategories(), loadProducts()]);
+      setLoading(false);
+    };
+    
+    loadData();
 
     // Listen for real-time product updates from admin
     const handleProductsUpdate = (event) => {
