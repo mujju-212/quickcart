@@ -1,137 +1,181 @@
-import { PRODUCTS, CATEGORIES } from '../utils/constants';
-import categoryService from './categoryService';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 class ProductService {
   constructor() {
-    this.initializeData();
+    this.baseURL = API_BASE_URL;
   }
 
-  initializeData() {
-    const storedProducts = localStorage.getItem('products');
+  async makeRequest(endpoint, options = {}) {
+    try {
+      const token = localStorage.getItem('authToken');
+      const defaultHeaders = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
 
-    if (!storedProducts) {
-      localStorage.setItem('products', JSON.stringify(PRODUCTS));
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
     }
-
-    // Initialize categories using categoryService
-    const constantsCategories = CATEGORIES.map(cat => ({
-      id: cat.id,
-      name: cat.name,
-      image: cat.image,
-      products: cat.products,
-      status: 'active'
-    }));
-    categoryService.initializeWithConstants(constantsCategories);
   }
 
-  getAllProducts() {
-    const products = localStorage.getItem('products');
-    return products ? JSON.parse(products) : PRODUCTS;
-  }
-
-  // Force reload all products from constants (for debugging/reset)
-  reloadFromConstants() {
-    console.log('🔄 Forcing reload from constants...');
-    console.log('📦 PRODUCTS constant has', PRODUCTS.length, 'products');
-    
-    // Clear localStorage completely
-    localStorage.removeItem('products');
-    localStorage.removeItem('categories');
-    
-    // Force set new data
-    localStorage.setItem('products', JSON.stringify(PRODUCTS));
-    
-    // Verify what was stored
-    const stored = localStorage.getItem('products');
-    const parsed = stored ? JSON.parse(stored) : [];
-    console.log('✅ Stored in localStorage:', parsed.length, 'products');
-    console.log('📋 Sample stored products:', parsed.slice(0, 3).map(p => ({ id: p.id, name: p.name })));
-    
-    return PRODUCTS;
-  }
-
-  getProductById(id) {
-    const products = this.getAllProducts();
-    return products.find(product => product.id === parseInt(id));
-  }
-
-  getProductsByCategory(category) {
-    const products = this.getAllProducts();
-    return products.filter(product => product.category === category);
-  }
-
-  searchProducts(query) {
-    const products = this.getAllProducts();
-    const searchTerm = query.toLowerCase();
-    
-    return products.filter(product => 
-      product.name.toLowerCase().includes(searchTerm) ||
-      product.category.toLowerCase().includes(searchTerm) ||
-      product.description.toLowerCase().includes(searchTerm)
-    );
-  }
-
-  getAllCategories() {
-    return categoryService.getAllCategories();
-  }
-
-  addProduct(product) {
-    const products = this.getAllProducts();
-    const newProduct = {
-      id: Date.now(),
-      ...product
-    };
-    
-    products.push(newProduct);
-    localStorage.setItem('products', JSON.stringify(products));
-    return newProduct;
-  }
-
-  updateProduct(id, updatedProduct) {
-    const products = this.getAllProducts();
-    const index = products.findIndex(product => product.id === id);
-    
-    if (index !== -1) {
-      products[index] = { ...products[index], ...updatedProduct };
-      localStorage.setItem('products', JSON.stringify(products));
-      return products[index];
+  async getAllProducts() {
+    try {
+      const response = await this.makeRequest('/products');
+      return response.products || [];
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return [];
     }
-    
-    return null;
   }
 
-  deleteProduct(id) {
-    const products = this.getAllProducts();
-    const filteredProducts = products.filter(product => product.id !== id);
-    localStorage.setItem('products', JSON.stringify(filteredProducts));
-    return true;
+  async getProductById(id) {
+    try {
+      const response = await this.makeRequest(`/products/${id}`);
+      return response.product;
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
   }
 
-  addCategory(category) {
-    return categoryService.createCategory(category);
+  async getProductsByCategory(categoryId) {
+    try {
+      const response = await this.makeRequest(`/products?category=${categoryId}`);
+      return response.products || [];
+    } catch (error) {
+      console.error('Error fetching products by category:', error);
+      return [];
+    }
   }
 
-  updateCategory(id, updatedCategory) {
-    return categoryService.updateCategory(id, updatedCategory);
+  async searchProducts(query) {
+    try {
+      const response = await this.makeRequest(`/products/search?q=${encodeURIComponent(query)}`);
+      return response.products || [];
+    } catch (error) {
+      console.error('Error searching products:', error);
+      return [];
+    }
   }
 
-  deleteCategory(id) {
-    return categoryService.deleteCategory(id);
+  async getAllCategories() {
+    try {
+      const response = await this.makeRequest('/categories');
+      return response.categories || [];
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
+    }
   }
 
-  getFeaturedProducts(limit = 20) {
-    const products = this.getAllProducts();
-    return products.slice(0, limit);
+  async addProduct(productData) {
+    try {
+      const response = await this.makeRequest('/products', {
+        method: 'POST',
+        body: JSON.stringify(productData)
+      });
+      return response.product;
+    } catch (error) {
+      console.error('Error adding product:', error);
+      throw error;
+    }
   }
 
-  getRelatedProducts(productId, limit = 4) {
-    const product = this.getProductById(productId);
-    if (!product) return [];
-    
-    const products = this.getAllProducts();
-    return products
-      .filter(p => p.category === product.category && p.id !== productId)
-      .slice(0, limit);
+  async updateProduct(id, updatedProduct) {
+    try {
+      const response = await this.makeRequest(`/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updatedProduct)
+      });
+      return response.product;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      throw error;
+    }
+  }
+
+  async deleteProduct(id) {
+    try {
+      await this.makeRequest(`/products/${id}`, {
+        method: 'DELETE'
+      });
+      return true;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw error;
+    }
+  }
+
+  async addCategory(categoryData) {
+    try {
+      const response = await this.makeRequest('/categories', {
+        method: 'POST',
+        body: JSON.stringify(categoryData)
+      });
+      return response.category;
+    } catch (error) {
+      console.error('Error adding category:', error);
+      throw error;
+    }
+  }
+
+  async updateCategory(id, updatedCategory) {
+    try {
+      const response = await this.makeRequest(`/categories/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updatedCategory)
+      });
+      return response.category;
+    } catch (error) {
+      console.error('Error updating category:', error);
+      throw error;
+    }
+  }
+
+  async deleteCategory(id) {
+    try {
+      await this.makeRequest(`/categories/${id}`, {
+        method: 'DELETE'
+      });
+      return true;
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      throw error;
+    }
+  }
+
+  async getFeaturedProducts(limit = 20) {
+    try {
+      const response = await this.makeRequest(`/products?limit=${limit}&featured=true`);
+      return response.products || [];
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      return [];
+    }
+  }
+
+  async getRelatedProducts(productId, limit = 4) {
+    try {
+      const response = await this.makeRequest(`/products/${productId}/related?limit=${limit}`);
+      return response.products || [];
+    } catch (error) {
+      console.error('Error fetching related products:', error);
+      return [];
+    }
   }
 }
 

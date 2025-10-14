@@ -1,62 +1,120 @@
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 class CartService {
-  getCart() {
-    const cart = localStorage.getItem('cart');
-    return cart ? JSON.parse(cart) : [];
+  constructor() {
+    this.baseURL = API_BASE_URL;
   }
 
-  saveCart(cart) {
-    localStorage.setItem('cart', JSON.stringify(cart));
-  }
-
-  addToCart(product, quantity = 1) {
-    const cart = this.getCart();
-    const existingItem = cart.find(item => item.id === product.id);
-    
-    if (existingItem) {
-      existingItem.quantity += quantity;
-    } else {
-      cart.push({ ...product, quantity });
-    }
-    
-    this.saveCart(cart);
-    return cart;
-  }
-
-  removeFromCart(productId) {
-    const cart = this.getCart();
-    const filteredCart = cart.filter(item => item.id !== productId);
-    this.saveCart(filteredCart);
-    return filteredCart;
-  }
-
-  updateQuantity(productId, quantity) {
-    const cart = this.getCart();
-    const item = cart.find(item => item.id === productId);
-    
-    if (item) {
-      if (quantity <= 0) {
-        return this.removeFromCart(productId);
+  async makeRequest(endpoint, options = {}) {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No authentication token found');
       }
-      item.quantity = quantity;
-      this.saveCart(cart);
+
+      const defaultHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Cart API request failed:', error);
+      throw error;
     }
-    
-    return cart;
   }
 
-  clearCart() {
-    localStorage.removeItem('cart');
-    return [];
+  async getCart() {
+    try {
+      const response = await this.makeRequest('/cart');
+      return response.cart || [];
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+      return [];
+    }
   }
 
-  getCartTotal() {
-    const cart = this.getCart();
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  async addToCart(productId, quantity = 1) {
+    try {
+      const response = await this.makeRequest('/cart/add', {
+        method: 'POST',
+        body: JSON.stringify({ product_id: productId, quantity })
+      });
+      return response.cart || [];
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      throw error;
+    }
   }
 
-  getCartItemsCount() {
-    const cart = this.getCart();
-    return cart.reduce((total, item) => total + item.quantity, 0);
+  async removeFromCart(productId) {
+    try {
+      const response = await this.makeRequest(`/cart/remove/${productId}`, {
+        method: 'DELETE'
+      });
+      return response.cart || [];
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      throw error;
+    }
+  }
+
+  async updateQuantity(productId, quantity) {
+    try {
+      const response = await this.makeRequest('/cart/update', {
+        method: 'PUT',
+        body: JSON.stringify({ product_id: productId, quantity })
+      });
+      return response.cart || [];
+    } catch (error) {
+      console.error('Error updating cart quantity:', error);
+      throw error;
+    }
+  }
+
+  async clearCart() {
+    try {
+      const response = await this.makeRequest('/cart/clear', {
+        method: 'DELETE'
+      });
+      return response.cart || [];
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      throw error;
+    }
+  }
+
+  async getCartTotal() {
+    try {
+      const response = await this.makeRequest('/cart/total');
+      return response.total || 0;
+    } catch (error) {
+      console.error('Error getting cart total:', error);
+      const cart = await this.getCart();
+      return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    }
+  }
+
+  async getCartItemsCount() {
+    try {
+      const cart = await this.getCart();
+      return cart.reduce((total, item) => total + item.quantity, 0);
+    } catch (error) {
+      console.error('Error getting cart items count:', error);
+      return 0;
+    }
   }
 }
 

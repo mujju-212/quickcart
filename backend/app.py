@@ -1,8 +1,9 @@
-from flask import Flask, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
+import os
+import logging
 import time
 import sys
-import os
 
 # Add parent directory to Python path so we can import backend modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,6 +12,18 @@ sys.path.append(parent_dir)
 
 from backend.config.config import Config
 from backend.routes.auth_routes import auth_bp
+from backend.routes.product_routes import product_bp
+from backend.routes.category_routes import category_bp
+from backend.routes.user_routes import user_bp
+from backend.routes.cart_routes import cart_bp
+from backend.routes.order_routes import order_bp
+from backend.utils.database import db
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 def create_app():
     """Application factory pattern"""
@@ -20,93 +33,92 @@ def create_app():
     app.config.from_object(Config)
     
     # Enable CORS for all routes
-    CORS(app)
+    CORS(app, origins=["http://localhost:3000"])
+    
+    # Test database connection on startup
+    with app.app_context():
+        if db.test_connection():
+            logging.info("✅ Database connection successful")
+        else:
+            logging.error("❌ Database connection failed")
     
     # Register blueprints
-    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(product_bp, url_prefix='/api/products')
+    app.register_blueprint(category_bp, url_prefix='/api/categories')
+    app.register_blueprint(user_bp, url_prefix='/api/users')
+    app.register_blueprint(cart_bp, url_prefix='/api/cart')
+    app.register_blueprint(order_bp, url_prefix='/api/orders')
     
     return app
 
 # Create Flask app instance
 app = create_app()
 
-@app.route('/api/health', methods=['GET'])
+@app.route('/')
+def hello():
+    return jsonify({
+        "message": "Blink Basket Backend API is running!",
+        "status": "success",
+        "version": "2.0.0",
+        "endpoints": {
+            "auth": "/api/auth",
+            "products": "/api/products",
+            "categories": "/api/categories",
+            "users": "/api/users",
+            "cart": "/api/cart",
+            "orders": "/api/orders",
+            "health": "/health"
+        }
+    })
+
+@app.route('/health')
 def health_check():
     """Health check endpoint"""
-    sms_services = Config.validate_sms_config()
+    db_status = "connected" if db.test_connection() else "disconnected"
+    sms_services = Config.validate_sms_config() if hasattr(Config, 'validate_sms_config') else {"twilio": False, "fast2sms": False}
     
     return jsonify({
         'success': True,
-        'message': 'Blinkit Backend API is running',
+        'message': 'Blink Basket Backend API is running',
         'services': {
+            'database': db_status,
             'sms': sms_services,
-            'database': False,  # TODO: Add database check
             'payments': False,  # TODO: Add payment gateway check
         },
         'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-        'version': '1.0.0'
+        'version': '2.0.0'
     })
 
-@app.route('/api', methods=['GET'])
+@app.route('/api')
 def api_info():
     """API information endpoint"""
     return jsonify({
-        'message': 'Blinkit Backend API',
-        'version': '1.0.0',
-        'endpoints': {
-            'health': '/api/health',
-            'auth': {
-                'send_otp': '/api/send-otp',
-                'verify_otp': '/api/verify-otp',
-                'otp_status': '/api/otp-status/<phone_number>'
-            },
-            'future_endpoints': {
-                'products': '/api/products',
-                'orders': '/api/orders',
-                'payments': '/api/payments',
-                'users': '/api/users'
-            }
-        }
+        'message': 'Blink Basket API',
+        'version': '2.0.0',
+        'status': 'running',
+        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
     })
 
 @app.errorhandler(404)
 def not_found(error):
-    """Handle 404 errors"""
-    return jsonify({
-        'success': False,
-        'message': 'Endpoint not found',
-        'error': 'Not Found'
-    }), 404
+    return jsonify({"error": "Endpoint not found"}), 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    """Handle 500 errors"""
-    return jsonify({
-        'success': False,
-        'message': 'Internal server error',
-        'error': 'Internal Server Error'
-    }), 500
+    return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
-    print("=" * 50)
-    print("🚀 Starting Blinkit Backend Server...")
-    print("=" * 50)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
     
-    # Validate SMS configuration
-    sms_config = Config.validate_sms_config()
-    print(f"📱 Twilio configured: {'✅ Yes' if sms_config['twilio'] else '❌ No'}")
-    print(f"📱 Fast2SMS configured: {'✅ Yes' if sms_config['fast2sms'] else '❌ No'}")
+    print(f"🚀 Starting Blink Basket Backend API on port {port}")
+    print(f"🐛 Debug mode: {debug}")
+    print(f"🌐 CORS enabled for: http://localhost:3000")
+    print(f"🗄️  Database URL: {Config.DATABASE_URL}")
     
-    if not any(sms_config.values()):
-        print("⚠️  Warning: No SMS services configured!")
-    
-    print(f"🌐 Server will run on: http://{Config.API_HOST}:{Config.API_PORT}")
-    print(f"🔍 Health check: http://{Config.API_HOST}:{Config.API_PORT}/api/health")
-    print("=" * 50)
-    
-    # Run the Flask application
     app.run(
-        debug=Config.DEBUG,
-        host=Config.API_HOST,
-        port=Config.API_PORT
+        host='0.0.0.0',
+        port=port,
+        debug=debug
     )

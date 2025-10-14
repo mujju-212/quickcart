@@ -11,6 +11,19 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
     DEBUG = os.getenv('FLASK_ENV') == 'development'
     
+    # Database Configuration
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = os.getenv('DB_PORT', '5432')
+    DB_NAME = os.getenv('DB_NAME', 'blink_basket')
+    DB_USER = os.getenv('DB_USER', 'postgres')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'mk0492')
+    DATABASE_URL = os.getenv('DATABASE_URL') or f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    
+    # JWT Configuration
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY') or 'your-jwt-secret-key-here'
+    JWT_ALGORITHM = 'HS256'
+    JWT_EXPIRATION_HOURS = 24
+    
     # Twilio Configuration
     TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
     TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
@@ -19,9 +32,6 @@ class Config:
     # Fast2SMS Configuration
     FAST2SMS_API_KEY = os.getenv('REACT_APP_FAST2SMS_API_KEY')
     FAST2SMS_URL = 'https://www.fast2sms.com/dev/bulkV2'
-    
-    # Database Configuration (for future use)
-    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///blinkit.db')
     
     # Payment Gateway Configuration (for future use)
     RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')

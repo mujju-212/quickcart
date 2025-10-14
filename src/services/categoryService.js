@@ -1,31 +1,35 @@
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 class CategoryService {
   constructor() {
-    this.clearCorruptedData();
-    // Only initialize if localStorage is completely empty
-    // This prevents overwriting admin-added categories
-    this.initializeDataOnce();
+    this.baseURL = API_BASE_URL;
   }
 
-  initializeDataOnce() {
-    const storedCategories = localStorage.getItem('categories');
-    if (!storedCategories || storedCategories === 'undefined') {
-      // Set a flag that we've initialized to prevent re-initialization
-      if (!localStorage.getItem('categories_initialized')) {
-        this.initializeData();
-        localStorage.setItem('categories_initialized', 'true');
-      }
-    }
-  }
-
-  clearCorruptedData() {
+  async makeRequest(endpoint, options = {}) {
     try {
-      const categories = localStorage.getItem('categories');
-      if (categories && categories !== 'undefined') {
-        JSON.parse(categories);
+      const token = localStorage.getItem('authToken');
+      const defaultHeaders = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
+
+      return await response.json();
     } catch (error) {
-      console.warn('Clearing corrupted categories data:', error);
-      localStorage.removeItem('categories');
+      console.error('Category API request failed:', error);
+      throw error;
     }
   }
 
@@ -103,50 +107,51 @@ class CategoryService {
     // If data exists, don't override it - preserve user-added categories
   }
 
-  getAllCategories() {
-    const categories = localStorage.getItem('categories');
-    if (!categories || categories === 'undefined') {
-      return [];
-    }
-    
+  async getAllCategories() {
     try {
-      const parsed = JSON.parse(categories);
-      return Array.isArray(parsed) ? parsed : [];
+      const response = await this.makeRequest('/categories');
+      return response.categories || [];
     } catch (error) {
-      console.warn('Invalid categories JSON, returning empty array:', error);
+      console.error('Error fetching categories:', error);
       return [];
     }
   }
 
-  getCategoryById(id) {
-    const categories = this.getAllCategories();
-    return categories.find(category => category.id === id);
+  async getCategoryById(id) {
+    try {
+      const response = await this.makeRequest(`/categories/${id}`);
+      return response.category;
+    } catch (error) {
+      console.error('Error fetching category:', error);
+      return null;
+    }
   }
 
-  getActiveCategories() {
-    const categories = this.getAllCategories();
-    return categories.filter(category => category.status === 'active');
+  async getActiveCategories() {
+    try {
+      const response = await this.makeRequest('/categories?status=active');
+      return response.categories || [];
+    } catch (error) {
+      console.error('Error fetching active categories:', error);
+      return [];
+    }
   }
 
-  createCategory(categoryData) {
-    const categories = this.getAllCategories();
-    const newCategory = {
-      id: this.generateCategoryId(),
-      ...categoryData,
-      status: 'active', // Ensure new categories are active
-      productsCount: 0,
-      createdAt: new Date().toISOString()
-    };
-    
-    categories.push(newCategory);
-    localStorage.setItem('categories', JSON.stringify(categories));
-    console.log('✅ New category created:', newCategory);
-    console.log('📋 All categories after creation:', categories);
-    
-    // Trigger custom event to notify other components
-    this.triggerCategoriesUpdate();
-    
-    return newCategory;
+  async createCategory(categoryData) {
+    try {
+      const response = await this.makeRequest('/categories', {
+        method: 'POST',
+        body: JSON.stringify(categoryData)
+      });
+      
+      // Trigger custom event to notify other components
+      this.triggerCategoriesUpdate();
+      
+      return response.category;
+    } catch (error) {
+      console.error('Error creating category:', error);
+      throw error;
+    }
   }
 
   updateCategory(categoryId, updateData) {

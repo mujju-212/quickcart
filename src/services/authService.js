@@ -1,78 +1,114 @@
-import smsService from './smsService';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 class AuthService {
+  constructor() {
+    this.baseURL = API_BASE_URL;
+  }
+
+  async makeRequest(endpoint, options = {}) {
+    try {
+      const token = localStorage.getItem('authToken');
+      const defaultHeaders = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Auth API request failed:', error);
+      throw error;
+    }
+  }
+
   async sendOTP(phone) {
     try {
-      const result = await smsService.sendOTP(phone);
-      return result;
+      const response = await this.makeRequest('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone })
+      });
+      return {
+        success: response.success,
+        message: response.message
+      };
     } catch (error) {
-      console.error('Auth Service - Send OTP Error:', error);
+      console.error('Send OTP Error:', error);
       return {
         success: false,
-        message: 'Failed to send OTP. Please try again.'
+        message: error.message || 'Failed to send OTP. Please try again.'
       };
     }
   }
 
   async verifyOTPAndLogin(phone, otp) {
     try {
-      const verificationResult = await smsService.verifyOTP(phone, otp);
-      
-      if (verificationResult.success) {
-        // Create user object and store in localStorage
-        const user = {
-          name: 'User', // You can enhance this later to get actual user data
-          phone: phone,
-          email: `${phone}@example.com`, // Temporary email
-          loginTime: new Date().toISOString()
-        };
+      const response = await this.makeRequest('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone, otp })
+      });
+
+      if (response.success) {
+        // Store auth token and user data
+        localStorage.setItem('authToken', response.token);
+        localStorage.setItem('currentUser', JSON.stringify(response.user));
         
-        localStorage.setItem('currentUser', JSON.stringify(user));
         return {
           success: true,
-          user: user,
+          user: response.user,
           message: 'Login successful'
         };
-      } else {
-        return verificationResult;
       }
-    } catch (error) {
-      console.error('Auth Service - Verify OTP Error:', error);
+      
       return {
         success: false,
-        message: 'Failed to verify OTP. Please try again.'
+        message: response.message || 'Invalid OTP'
+      };
+    } catch (error) {
+      console.error('Verify OTP Error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to verify OTP. Please try again.'
       };
     }
   }
 
-  login(phone) {
-    const user = {
-      name: 'John Doe',
-      phone: phone,
-      email: 'john@example.com'
-    };
-    
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    return user;
-  }
+  async adminLogin(username, password) {
+    try {
+      const response = await this.makeRequest('/auth/admin-login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
 
-  adminLogin(username, password) {
-    if (username === 'admin' && password === 'admin123') {
-      const adminUser = {
-        name: 'Admin',
-        role: 'admin'
-      };
+      if (response.success) {
+        localStorage.setItem('authToken', response.token);
+        localStorage.setItem('currentUser', JSON.stringify(response.user));
+        localStorage.setItem('isAdmin', 'true');
+        return response.user;
+      }
       
-      localStorage.setItem('currentUser', JSON.stringify(adminUser));
-      localStorage.setItem('isAdmin', 'true');
-      return adminUser;
+      return null;
+    } catch (error) {
+      console.error('Admin login error:', error);
+      return null;
     }
-    return null;
   }
 
   logout() {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('isAdmin');
+    localStorage.removeItem('authToken');
   }
 
   getCurrentUser() {
@@ -84,13 +120,34 @@ class AuthService {
     return localStorage.getItem('isAdmin') === 'true';
   }
 
-  verifyOTP(otp) {
-    // Legacy method - kept for backward compatibility
-    return otp.length === 6;
+  isAuthenticated() {
+    const token = localStorage.getItem('authToken');
+    const user = this.getCurrentUser();
+    return !!(token && user);
   }
 
-  getOTPRemainingTime(phone) {
-    return smsService.getOTPRemainingTime(phone);
+  async refreshUserData() {
+    try {
+      const response = await this.makeRequest('/auth/me');
+      if (response.success) {
+        localStorage.setItem('currentUser', JSON.stringify(response.user));
+        return response.user;
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+      this.logout();
+    }
+    return null;
+  }
+
+  async getOTPRemainingTime(phone) {
+    try {
+      const response = await this.makeRequest(`/auth/otp-status/${phone}`);
+      return response.remainingTime || 0;
+    } catch (error) {
+      console.error('Error getting OTP remaining time:', error);
+      return 0;
+    }
   }
 }
 
