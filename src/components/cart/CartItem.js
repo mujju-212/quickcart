@@ -2,6 +2,7 @@ import React from 'react';
 import { Row, Col, Button, Image } from 'react-bootstrap';
 import { useCart } from '../../context/CartContext';
 import QuantityStepper from './QuantityStepper';
+import { getProductImage } from '../../utils/helpers';
 
 const CartItem = ({ item }) => {
   const { removeFromCart } = useCart();
@@ -11,7 +12,7 @@ const CartItem = ({ item }) => {
       <Row className="align-items-center">
         <Col xs={3} md={2}>
           <Image 
-            src={item.image} 
+            src={getProductImage(item)} 
             alt={item.name}
             fluid
             rounded

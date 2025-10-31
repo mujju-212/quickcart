@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
 from utils.database import db
+from utils.auth_middleware import admin_required, optional_auth
+from utils.input_validator import InputValidator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -97,8 +99,11 @@ def get_products_by_category(category_name):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @product_bp.route('/', methods=['POST'])
-def create_product():
-    """Create a new product (Admin only)"""
+@admin_required
+def create_product(current_user):
+    """
+    🔒 SECURED: Create a new product (Admin only)
+    """
     try:
         data = request.get_json()
         
@@ -106,9 +111,24 @@ def create_product():
         if not all(field in data for field in required_fields):
             return jsonify({"success": False, "error": "Missing required fields"}), 400
         
+        # 🔒 Validate product data
+        name = InputValidator.sanitize_string(data['name'], max_length=200)
+        category_name = InputValidator.sanitize_string(data['category_name'], max_length=100)
+        description = InputValidator.sanitize_string(data.get('description', ''), max_length=1000)
+        
+        # Validate price
+        price_validation = InputValidator.validate_price(data['price'])
+        if not price_validation['valid']:
+            return jsonify({"success": False, "error": price_validation['error']}), 400
+        
+        # Validate stock
+        stock_validation = InputValidator.validate_quantity(data['stock'])
+        if not stock_validation['valid']:
+            return jsonify({"success": False, "error": stock_validation['error']}), 400
+        
         # Get category ID from name
         category_query = "SELECT id FROM categories WHERE name = %s"
-        category = db.execute_query_one(category_query, (data['category_name'],))
+        category = db.execute_query_one(category_query, (category_name,))
         category_id = category['id'] if category else None
         
         query = """
@@ -119,15 +139,15 @@ def create_product():
         """
         
         params = (
-            data['name'],
+            name,
             category_id,
-            data['category_name'],
-            data['price'],
-            data.get('original_price', data['price']),
+            category_name,
+            float(data['price']),
+            float(data.get('original_price', data['price'])),
             data['size'],
-            data['stock'],
+            int(data['stock']),
             data.get('image_url', ''),
-            data.get('description', '')
+            description
         )
         
         result = db.execute_query(query, params, fetch=True)
@@ -140,6 +160,8 @@ def create_product():
                     (category_id,)
                 )
             
+            logger.info(f"✅ Admin {current_user['id']} created product: {name}")
+            
             return jsonify({
                 "success": True,
                 "product": dict(result[0]),
@@ -149,12 +171,15 @@ def create_product():
         return jsonify({"success": False, "error": "Failed to create product"}), 500
         
     except Exception as e:
-        logger.error(f"Error creating product: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"❌ Error creating product: {e}")
+        return jsonify({"success": False, "error": "Failed to create product"}), 500
 
 @product_bp.route('/<int:product_id>', methods=['PUT'])
-def update_product(product_id):
-    """Update a product (Admin only)"""
+@admin_required
+def update_product(current_user, product_id):
+    """
+    🔒 SECURED: Update a product (Admin only)
+    """
     try:
         data = request.get_json()
         
@@ -167,8 +192,25 @@ def update_product(product_id):
         
         for field in allowed_fields:
             if field in data:
+                # 🔒 Sanitize string fields
+                if field in ['name', 'category_name', 'description', 'status']:
+                    value = InputValidator.sanitize_string(data[field], max_length=1000)
+                # Validate numeric fields
+                elif field in ['price', 'original_price']:
+                    price_val = InputValidator.validate_price(data[field])
+                    if not price_val['valid']:
+                        return jsonify({"success": False, "error": price_val['error']}), 400
+                    value = float(data[field])
+                elif field == 'stock':
+                    stock_val = InputValidator.validate_quantity(data[field])
+                    if not stock_val['valid']:
+                        return jsonify({"success": False, "error": stock_val['error']}), 400
+                    value = int(data[field])
+                else:
+                    value = data[field]
+                
                 update_fields.append(f"{field} = %s")
-                params.append(data[field])
+                params.append(value)
         
         if not update_fields:
             return jsonify({"success": False, "error": "No valid fields to update"}), 400
@@ -176,7 +218,7 @@ def update_product(product_id):
         # Update category_id if category_name changed
         if 'category_name' in data:
             category_query = "SELECT id FROM categories WHERE name = %s"
-            category = db.execute_query_one(category_query, (data['category_name'],))
+            category = db.execute_query_one(category_query, (InputValidator.sanitize_string(data['category_name']),))
             if category:
                 update_fields.append("category_id = %s")
                 params.append(category['id'])
@@ -193,6 +235,8 @@ def update_product(product_id):
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            logger.info(f"✅ Admin {current_user['id']} updated product {product_id}")
+            
             return jsonify({
                 "success": True,
                 "product": dict(result[0]),
@@ -206,8 +250,11 @@ def update_product(product_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @product_bp.route('/<int:product_id>', methods=['DELETE'])
-def delete_product(product_id):
-    """Delete a product (Admin only)"""
+@admin_required
+def delete_product(current_user, product_id):
+    """
+    🔒 SECURED: Delete a product (Admin only)
+    """
     try:
         # Soft delete - set status to inactive
         query = """
@@ -233,6 +280,8 @@ def delete_product(product_id):
                        WHERE id = %s""",
                     (category_id, category_id)
                 )
+            
+            logger.info(f"✅ Admin {current_user['id']} deleted product {product_id}")
             
             return jsonify({
                 "success": True,

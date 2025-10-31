@@ -37,7 +37,7 @@ def test_api_endpoint(endpoint, method='GET', data=None, headers=None):
 
 def test_database_migration():
     """Test database migration and API endpoints"""
-    print("🧪 Testing Blink Basket Database Migration")
+    print("🧪 Testing QuickCart Database Migration")
     print("=" * 50)
     
     # Test 1: Backend Health Check

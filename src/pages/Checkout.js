@@ -3,13 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Form, Modal, Alert } from 'react-bootstrap';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useLocation } from '../context/LocationContext';
 import { useNavigate } from 'react-router-dom';
 import { FaClipboardList, FaCreditCard, FaCheck } from 'react-icons/fa';
 import orderService from '../services/orderService';
+import { getImagePlaceholder, getProductImage } from '../utils/helpers';
 
 const Checkout = () => {
   const { cart, getCartTotal, clearCart } = useCart();
   const { user, currentUser } = useAuth();
+  const { addresses: contextAddresses, addAddress: addAddressToContext } = useLocation();
   const navigate = useNavigate();
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -19,6 +22,7 @@ const Checkout = () => {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [orderTotal, setOrderTotal] = useState(0); // Store the order total before cart is cleared
   const [newAddress, setNewAddress] = useState({
     name: '',
     phone: '',
@@ -63,13 +67,12 @@ const Checkout = () => {
   ];
 
   useEffect(() => {
-    // Load saved addresses and auto-select first one
-    const savedAddresses = JSON.parse(localStorage.getItem('userAddresses') || '[]');
-    setAddresses(savedAddresses);
-    if (savedAddresses.length > 0) {
-      setSelectedAddress(savedAddresses[0]);
+    // Load addresses from LocationContext
+    setAddresses(contextAddresses);
+    if (contextAddresses.length > 0) {
+      setSelectedAddress(contextAddresses[0]);
     }
-  }, []);
+  }, [contextAddresses]);
 
   const detectCurrentLocation = () => {
     if (navigator.geolocation) {
@@ -92,7 +95,7 @@ const Checkout = () => {
           // Show notification
           const notification = document.createElement('div');
           notification.innerHTML = `
-            <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1055; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
               <i class="fas fa-map-marker-alt me-2"></i>
               Location detected: ${randomLocation.area}, ${randomLocation.city}
             </div>
@@ -218,17 +221,15 @@ const Checkout = () => {
       return;
     }
     const address = {
-      id: Date.now(),
       ...newAddress,
       name: newAddress.name || (user?.name || currentUser?.name),
       phone: newAddress.phone || (user?.phone || currentUser?.phone)
     };
     
-    const updatedAddresses = [...addresses, address];
-    setAddresses(updatedAddresses);
-    localStorage.setItem('userAddresses', JSON.stringify(updatedAddresses));
+    // Add to LocationContext (it will handle id generation and localStorage)
+    const savedAddress = addAddressToContext(address);
     
-    setSelectedAddress(address);
+    setSelectedAddress(savedAddress);
     setShowAddressModal(false);
     setNewAddress({
       name: '',
@@ -257,7 +258,7 @@ const Checkout = () => {
     }, 3000);
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!selectedAddress) {
       alert('Please select a delivery address');
       return;
@@ -267,41 +268,81 @@ const Checkout = () => {
       return;
     }
 
-    // Create order using orderService
-    const orderData = {
-      customer: currentUser?.name || user?.displayName || 'Guest User',
-      phone: currentUser?.phone || user?.phoneNumber || 'N/A',
-      email: currentUser?.email || user?.email || 'N/A',
-      address: `${selectedAddress.house}, ${selectedAddress.area}, ${selectedAddress.city} - ${selectedAddress.pincode}`,
-      paymentMethod: paymentMethods.find(p => p.id === selectedPayment)?.name || 'Unknown',
-      paymentStatus: selectedPayment === 'cod' ? 'Pending' : 'Completed',
-      deliveryFee: deliveryFee,
-      items: cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        image: item.image,
-        price: item.price,
-        quantity: item.quantity,
-        size: item.size
-      })),
-      total: total
-    };
+    try {
+      // Backend expects: phone, items (with product_id and quantity), delivery_address
+      const orderData = {
+        phone: currentUser?.phone || user?.phoneNumber || 'N/A',
+        items: cart.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity
+        })),
+        delivery_address: `${selectedAddress.house}, ${selectedAddress.area}, ${selectedAddress.city} - ${selectedAddress.pincode}`,
+        payment_method: paymentMethods.find(p => p.id === selectedPayment)?.name?.toLowerCase() || 'cash',
+        payment_status: selectedPayment === 'cod' ? 'pending' : 'completed',
+        delivery_fee: deliveryFee,
+        handling_fee: handlingFee
+      };
 
-    // Save order using orderService
-    const newOrder = orderService.createOrder(orderData);
-    setOrderId(newOrder.id);
+      // Create order using orderService
+      const response = await orderService.createOrder(orderData);
+      
+      if (response && response.id) {
+        setOrderId(response.id);
 
-    // Clear cart
-    clearCart();
+        // Save the total BEFORE clearing cart (important!)
+        const finalTotal = response.total || total;
+        setOrderTotal(finalTotal);
 
-    // Show success step
-    setOrderPlaced(true);
-    setCurrentStep(3);
+        // Save order to localStorage for order history
+        const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        
+        // Transform backend response to match frontend format
+        // Use backend's calculated total for accuracy
+        const orderForStorage = {
+          id: response.id,
+          customer: currentUser?.name || user?.displayName || 'Guest User',
+          phone: currentUser?.phone || user?.phoneNumber || 'N/A',
+          email: currentUser?.email || user?.email || 'N/A',
+          address: orderData.delivery_address,
+          paymentMethod: orderData.payment_method,
+          paymentStatus: orderData.payment_status,
+          deliveryFee: deliveryFee,
+          handlingFee: handlingFee,
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            image: item.image_url || item.image,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size
+          })),
+          total: finalTotal,
+          subtotal: response.subtotal || subtotal,
+          status: response.status || 'pending',
+          date: response.date || response.created_at || new Date().toISOString()
+        };
+        
+        userOrders.unshift(orderForStorage);
+        localStorage.setItem('userOrders', JSON.stringify(userOrders));
 
-    // Auto redirect after 5 seconds
-    setTimeout(() => {
-      navigate('/account?tab=orders');
-    }, 5000);
+        // Clear cart
+        clearCart();
+
+        // Show success step
+        setOrderPlaced(true);
+        setCurrentStep(3);
+
+        // Auto redirect after 5 seconds
+        setTimeout(() => {
+          navigate('/account?tab=orders');
+        }, 5000);
+      } else {
+        throw new Error('Order creation failed - no order ID received');
+      }
+    } catch (error) {
+      console.error('Error placing order:', error);
+      alert('Failed to place order. Please try again.');
+    }
   };
 
   const nextStep = () => {
@@ -407,7 +448,7 @@ const Checkout = () => {
                     </Col>
                     <Col md={6}>
                       <div className="text-end">
-                        <div className="fw-bold fs-5">₹{total}</div>
+                        <div className="fw-bold fs-5">₹{orderTotal || total}</div>
                         <div className="small text-muted">
                           {paymentMethods.find(p => p.id === selectedPayment)?.name}
                         </div>
@@ -478,12 +519,12 @@ const Checkout = () => {
                       <div key={item.id} className="d-flex justify-content-between align-items-center py-3 border-bottom">
                         <div className="d-flex align-items-center">
                           <img 
-                            src={item.image} 
+                            src={getProductImage(item)} 
                             alt={item.name}
                             style={{ width: '60px', height: '60px', objectFit: 'cover' }}
                             className="rounded me-3"
                             onError={(e) => {
-                              e.target.src = `https://via.placeholder.com/60x60/f8f9fa/6c757d?text=${item.name.substring(0, 2)}`;
+                              e.target.src = getImagePlaceholder(60, 60, item.name.substring(0, 2));
                             }}
                           />
                           <div>                            <div className="fw-semibold">{item.name}</div>
@@ -652,7 +693,7 @@ const Checkout = () => {
 
           {/* Order Summary Sidebar */}
           <Col md={4}>
-            <Card className="sticky-top" style={{ top: '100px' }}>
+            <Card className="sticky-top" style={{ top: '100px', zIndex: 1 }}>
               <Card.Header>
                 <h6 className="mb-0">
                   <i className="fas fa-receipt me-2"></i>
@@ -741,7 +782,7 @@ const Checkout = () => {
                     type="text"
                     value={newAddress.name}
                     onChange={(e) => handleAddressInputChange('name', e.target.value)}
-                    placeholder={user?.name || currentUser?.name || "Enter full name (letters only)"}
+                    placeholder="Enter full name"
                     isInvalid={!!addressErrors.name}
                     required
                   />
@@ -757,7 +798,7 @@ const Checkout = () => {
                     type="tel"
                     value={newAddress.phone}
                     onChange={(e) => handleAddressInputChange('phone', e.target.value)}
-                    placeholder={user?.phone || currentUser?.phone || "Enter 10-digit phone number"}
+                    placeholder="Enter 10-digit phone number"
                     isInvalid={!!addressErrors.phone}
                     maxLength="10"
                     required

@@ -2,9 +2,21 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { getColoredPlaceholder } from '../../utils/helpers';
 
 const CategoryCard = ({ category }) => {
   const navigate = useNavigate();
+
+  // Debug logging
+  console.log('🎯 CategoryCard rendering:', {
+    name: category.name,
+    image_url: category.image_url,
+    image: category.image,
+    hasImageUrl: !!category.image_url,
+    hasImage: !!category.image,
+    finalImageSrc: category.image_url || category.image,
+    fullCategory: category
+  });
 
   const handleCategoryClick = () => {
     navigate(`/search?category=${encodeURIComponent(category.name)}`);
@@ -12,56 +24,98 @@ const CategoryCard = ({ category }) => {
 
   return (
     <Card 
-      className="text-center h-100 category-card shadow-sm border-0"
+      className="text-center h-100 category-card shadow-sm border-0 overflow-hidden"
       onClick={handleCategoryClick}
       style={{ 
         cursor: 'pointer', 
         transition: 'all 0.2s ease',
-        minHeight: '130px', // Compact height
-        borderRadius: '12px'
+        minHeight: '160px',
+        borderRadius: '16px',
+        position: 'relative'
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-3px)';
-        e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+        e.currentTarget.style.transform = 'translateY(-5px)';
+        e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
       }}
     >
-      <Card.Body className="d-flex flex-column align-items-center justify-content-center p-2">
-<div 
-  className="category-icon mb-2"
-  style={{ 
-    width: '80px',  // Increased from 50px
-    height: '80px', // Increased from 50px
-    borderRadius: '12px', // Slightly larger border radius
-    overflow: 'hidden',
-    backgroundColor: '#f8f9fa'
-  }}
->
-  <img 
-    src={category.image_url || category.image} 
-    alt={category.name}
-    className="w-100 h-100"
-    style={{ objectFit: 'cover' }}
-    onError={(e) => {
-      e.target.src = `https://via.placeholder.com/80x80/ffe01b/000000?text=${category.name.charAt(0)}`;
-    }}
-  />
-</div>
-        <Card.Title 
-          className="mb-0 text-center" 
+      {/* Full-size background image */}
+      <div 
+        style={{ 
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          minHeight: '160px'
+        }}
+      >
+        <img 
+          src={category.image_url || category.image} 
+          alt={category.name}
           style={{ 
-            fontSize: '0.75rem', // Smaller font
-            fontWeight: '600',
-            lineHeight: '1.2',
-            color: '#333'
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            position: 'absolute',
+            top: 0,
+            left: 0
+          }}
+          onLoad={(e) => {
+            console.log('✅ Image loaded successfully for:', category.name, 'URL:', e.target.src);
+          }}
+          onError={(e) => {
+            console.log('❌ Image failed to load for:', category.name);
+            console.log('   - Original URL:', category.image_url || category.image);
+            console.log('   - Failed URL:', e.target.src);
+            console.log('   - Error event:', e);
+            
+            // Try to load the image again with a direct fetch to see what the error is
+            if (category.image_url) {
+              fetch(category.image_url)
+                .then(response => {
+                  console.log('   - Fetch test status:', response.status, response.statusText);
+                  if (!response.ok) {
+                    console.log('   - Fetch failed with status:', response.status);
+                  }
+                })
+                .catch(fetchError => {
+                  console.log('   - Fetch error:', fetchError.message);
+                });
+            }
+            
+            e.target.src = getColoredPlaceholder(300, 300, category.name.charAt(0), '#ffe01b', '#000000');
+          }}
+        />
+        
+        {/* Gradient overlay for text readability */}
+        <div 
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)',
+            padding: '30px 10px 12px 10px',
+            zIndex: 1
           }}
         >
-          {category.name}
-        </Card.Title>
-      </Card.Body>
+          <Card.Title 
+            className="mb-0 text-center" 
+            style={{ 
+              fontSize: '0.9rem',
+              fontWeight: '700',
+              lineHeight: '1.3',
+              color: '#ffffff',
+              textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+              letterSpacing: '0.3px'
+            }}
+          >
+            {category.name}
+          </Card.Title>
+        </div>
+      </div>
     </Card>
   );
 };

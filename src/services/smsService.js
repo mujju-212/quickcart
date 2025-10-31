@@ -1,7 +1,7 @@
 // SMS Service for Flask backend integration
 class SMSService {
   constructor() {
-    this.baseURL = 'http://localhost:5000/api';
+    this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
     this.otpTimers = new Map(); // Track OTP send times for rate limiting
   }
 

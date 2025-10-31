@@ -3,18 +3,20 @@ import { Container, Row, Col, Card, Form, Button, Alert, Modal } from 'react-boo
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
+import ProfileCompletionModal from '../components/auth/ProfileCompletionModal';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [showOtpModal, setShowOtpModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [otpSent, setOtpSent] = useState(false);
 
-  const { login } = useAuth();
+  const { login, registerUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,9 +54,9 @@ const Login = () => {
         setOtpSent(true);
         setResendTimer(60); // 60 seconds before resend is allowed
         
-        // Show demo OTP in development mode
-        if (result.demo && result.demoOTP) {
-          alert(`Demo Mode - OTP: ${result.demoOTP}`);
+        // Only show OTP in development mode if backend explicitly sends it
+        if (result.development_mode && result.otp) {
+          console.log(`🔔 Development Mode - OTP: ${result.otp}`);
         }
       } else {
         setError(result.message || 'Failed to send OTP');
@@ -81,12 +83,21 @@ const Login = () => {
       const result = await authService.verifyOTPAndLogin(phone, otp);
       
       if (result.success) {
-        login(phone);
-        setShowOtpModal(false);
-        
-        // Redirect to the page user intended to visit before login
-        const from = location.state?.from?.pathname || '/';
-        navigate(from, { replace: true });
+        // 🔒 SECURITY: Check for JWT token from backend
+        if (result.token && result.user) {
+          // Existing user with JWT token - log them in
+          await login(phone, result.user, result.token); // Pass token to login
+          setShowOtpModal(false);
+          
+          // Redirect to home page
+          navigate('/', { replace: true });
+        } else if (result.isNewUser || !result.token) {
+          // New user or no token - show profile completion modal
+          setShowOtpModal(false);
+          setShowProfileModal(true);
+        } else {
+          setError('Login failed. Please try again.');
+        }
       } else {
         setError(result.message || 'Invalid OTP');
       }
@@ -109,9 +120,9 @@ const Login = () => {
       if (result.success) {
         setResendTimer(60);
         
-        // Show demo OTP in development mode
-        if (result.demo && result.demoOTP) {
-          alert(`Demo Mode - New OTP: ${result.demoOTP}`);
+        // Only show OTP in development mode if backend explicitly sends it
+        if (result.development_mode && result.otp) {
+          console.log(`🔔 Development Mode - New OTP: ${result.otp}`);
         }
       } else {
         setError(result.message || 'Failed to resend OTP');
@@ -123,6 +134,35 @@ const Login = () => {
     }
   };
 
+  const handleProfileComplete = async (user) => {
+    setShowProfileModal(false);
+    
+    // Show success notification
+    const notification = document.createElement('div');
+    notification.innerHTML = `
+      <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <i class="fas fa-check-circle me-2"></i>
+        Welcome, ${user.name}! Your account has been created.
+      </div>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 3000);
+    
+    // Redirect to home page
+    navigate('/', { replace: true });
+  };
+
+  const handleProfileCancel = () => {
+    setShowProfileModal(false);
+    setShowOtpModal(false);
+    setPhone('');
+    setOtp('');
+  };
+
   return (
     <>
       <Container className="py-5">
@@ -131,7 +171,7 @@ const Login = () => {
             <Card>
               <Card.Body className="p-4">
                 <div className="text-center mb-4">
-                  <h3>Login to Blinkit</h3>
+                  <h3>Login to QuickCart</h3>
                   <p className="text-muted">
                     Get groceries delivered in 10 minutes
                   </p>
@@ -174,9 +214,9 @@ const Login = () => {
 
                 <div className="mt-3 p-3 bg-light rounded">
                   <small className="text-muted">
-                    <strong>Real SMS Authentication:</strong><br/>
-                    Enter your phone number to receive OTP via SMS<br/>
-                    <strong>Demo Mode:</strong> Works with any 10-digit number
+                    <i className="fas fa-shield-alt me-2"></i>
+                    <strong>Secure OTP Authentication</strong><br/>
+                    Enter your phone number to receive a one-time password via SMS
                   </small>
                 </div>
               </Card.Body>
@@ -209,11 +249,6 @@ const Login = () => {
                 style={{ letterSpacing: '0.5rem' }}
                 required
               />
-              <Form.Text className="text-muted text-center d-block">
-                {process.env.REACT_APP_ENV === 'development' && 
-                  'Demo Mode: Check console/alert for OTP'
-                }
-              </Form.Text>
             </Form.Group>
 
             <Button 
@@ -263,6 +298,14 @@ const Login = () => {
           </div>
         </Modal.Body>
       </Modal>
+
+      {/* Profile Completion Modal for New Users */}
+      <ProfileCompletionModal
+        show={showProfileModal}
+        phone={phone}
+        onComplete={handleProfileComplete}
+        onCancel={handleProfileCancel}
+      />
     </>
   );
 };

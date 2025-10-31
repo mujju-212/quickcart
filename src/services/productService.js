@@ -1,8 +1,14 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import cacheUtils from '../utils/cacheUtils';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class ProductService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.isDevelopmentMode = process.env.NODE_ENV === 'development' && 
+                             process.env.REACT_APP_USE_MOCK_DATA !== 'false';
+    this.backendAvailable = false;
+    
     // Clear any old localStorage data to ensure we use API
     this.clearOldData();
   }
@@ -46,36 +52,31 @@ class ProductService {
   }
 
   async getAllProducts() {
-    try {
+    return cacheUtils.getOrFetch('products:all', async () => {
+      console.log('🌐 Loading products from API...');
       const response = await this.makeRequest('/products');
-      return response; // Return full response object
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      return { success: false, products: [], error: error.message };
-    }
+      this.backendAvailable = true;
+      console.log('✅ Products loaded from API:', response.products?.length || 0);
+      return response;
+    });
   }
 
   async getProductById(id) {
-    try {
+    return cacheUtils.getOrFetch(`product:${id}`, async () => {
       const response = await this.makeRequest(`/products/${id}`);
-      return response; // Return full response object
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      return { success: false, product: null, error: error.message };
-    }
+      return response;
+    }, 10 * 60 * 1000); // Cache for 10 minutes
   }
 
   async getProductsByCategory(categoryId) {
-    try {
+    return cacheUtils.getOrFetch(`products:category:${categoryId}`, async () => {
       const response = await this.makeRequest(`/products?category=${categoryId}`);
       return response.products || [];
-    } catch (error) {
-      console.error('Error fetching products by category:', error);
-      return [];
-    }
+    });
   }
 
   async searchProducts(query) {
+    // Don't cache search results as they change frequently
     try {
       const response = await this.makeRequest(`/products/search?q=${encodeURIComponent(query)}`);
       return response.products || [];
@@ -86,37 +87,44 @@ class ProductService {
   }
 
   async getAllCategories() {
-    try {
+    return cacheUtils.getOrFetch('categories:all', async () => {
       const response = await this.makeRequest('/categories');
       return response.categories || [];
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      return [];
-    }
+    });
   }
 
   async addProduct(productData) {
     try {
+      console.log('🆕 Creating product via API:', productData);
       const response = await this.makeRequest('/products', {
         method: 'POST',
         body: JSON.stringify(productData)
       });
+      
+      this.backendAvailable = true;
+      console.log('✅ Product created successfully:', response);
       return response.product;
     } catch (error) {
-      console.error('Error adding product:', error);
+      console.error('❌ Failed to create product via API:', error);
+      this.backendAvailable = false;
       throw error;
     }
   }
 
   async updateProduct(id, updatedProduct) {
     try {
+      console.log('🔄 Updating product via API:', id, updatedProduct);
       const response = await this.makeRequest(`/products/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updatedProduct)
       });
+      
+      this.backendAvailable = true;
+      console.log('✅ Product updated successfully:', response);
       return response.product;
     } catch (error) {
-      console.error('Error updating product:', error);
+      console.error('❌ Failed to update product via API:', error);
+      this.backendAvailable = false;
       throw error;
     }
   }

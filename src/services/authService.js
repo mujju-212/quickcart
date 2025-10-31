@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class AuthService {
   constructor() {
@@ -37,11 +37,19 @@ class AuthService {
     try {
       const response = await this.makeRequest('/auth/send-otp', {
         method: 'POST',
-        body: JSON.stringify({ phone })
+        body: JSON.stringify({ phoneNumber: phone })
       });
+      
+      // If development mode, show OTP in console and alert
+      if (response.development_mode && response.otp) {
+        console.log('🔔 DEVELOPMENT MODE - OTP:', response.otp);
+      }
+      
       return {
         success: response.success,
-        message: response.message
+        message: response.message,
+        demo: response.development_mode,
+        demoOTP: response.otp
       };
     } catch (error) {
       console.error('Send OTP Error:', error);
@@ -56,18 +64,23 @@ class AuthService {
     try {
       const response = await this.makeRequest('/auth/verify-otp', {
         method: 'POST',
-        body: JSON.stringify({ phone, otp })
+        body: JSON.stringify({ phoneNumber: phone, otp })
       });
 
       if (response.success) {
-        // Store auth token and user data
-        localStorage.setItem('authToken', response.token);
-        localStorage.setItem('currentUser', JSON.stringify(response.user));
+        // 🔒 SECURITY: Store JWT token if user exists
+        if (response.token && response.user) {
+          localStorage.setItem('authToken', response.token);
+          localStorage.setItem('currentUser', JSON.stringify(response.user));
+        }
         
         return {
           success: true,
           user: response.user,
-          message: 'Login successful'
+          token: response.token,
+          isNewUser: response.isNewUser || false,
+          phone: response.phone,
+          message: response.message || 'OTP verified successfully'
         };
       }
       
@@ -91,17 +104,29 @@ class AuthService {
         body: JSON.stringify({ username, password })
       });
 
-      if (response.success) {
+      if (response.success && response.token && response.user) {
+        // 🔒 SECURITY: Store JWT token and user data
         localStorage.setItem('authToken', response.token);
         localStorage.setItem('currentUser', JSON.stringify(response.user));
         localStorage.setItem('isAdmin', 'true');
-        return response.user;
+        
+        return {
+          success: true,
+          user: response.user,
+          token: response.token
+        };
       }
       
-      return null;
+      return {
+        success: false,
+        message: response.message || 'Invalid credentials'
+      };
     } catch (error) {
       console.error('Admin login error:', error);
-      return null;
+      return {
+        success: false,
+        message: error.message || 'Login failed'
+      };
     }
   }
 

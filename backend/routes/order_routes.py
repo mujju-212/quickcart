@@ -1,5 +1,8 @@
 from flask import Blueprint, request, jsonify
 from utils.database import db
+from utils.auth_middleware import token_required, admin_required
+from utils.input_validator import InputValidator
+from utils.rate_limiter import RateLimiter
 import logging
 import datetime
 import secrets
@@ -11,19 +14,76 @@ def generate_order_id():
     """Generate unique order ID"""
     timestamp = str(int(datetime.datetime.now().timestamp()))
     random_part = secrets.token_hex(3).upper()
-    return f"BLK{timestamp}{random_part}"
+    return f"QC{timestamp}{random_part}"
+
+def calculate_order_total(items, delivery_fee=29, handling_fee=5, coupon=None):
+    """
+    🔒 SECURITY: Backend price calculation to prevent manipulation
+    """
+    subtotal = 0
+    
+    for item in items:
+        # Get current product price from database
+        product_query = "SELECT price FROM products WHERE id = %s AND status = 'active'"
+        product = db.execute_query_one(product_query, (item['product_id'],))
+        
+        if not product:
+            raise ValueError(f"Product {item['product_id']} not found")
+        
+        # Use database price, NOT client-provided price
+        item_total = float(product['price']) * int(item['quantity'])
+        subtotal += item_total
+    
+    # Calculate delivery fee (free if >= 99)
+    final_delivery_fee = 0 if subtotal >= 99 else delivery_fee
+    
+    # Apply coupon discount
+    discount = 0
+    if coupon:
+        # Revalidate coupon
+        coupon_query = """
+            SELECT * FROM offers 
+            WHERE code = %s 
+            AND status = 'active'
+            AND start_date <= CURRENT_DATE 
+            AND end_date >= CURRENT_DATE
+        """
+        valid_coupon = db.execute_query_one(coupon_query, (coupon,))
+        
+        if valid_coupon:
+            min_order = float(valid_coupon.get('min_order_amount', 0))
+            
+            if subtotal >= min_order:
+                if valid_coupon['discount_type'] == 'percentage':
+                    discount = (subtotal * float(valid_coupon['discount_value'])) / 100
+                    max_discount = valid_coupon.get('max_discount_amount')
+                    if max_discount:
+                        discount = min(discount, float(max_discount))
+                elif valid_coupon['discount_type'] == 'fixed':
+                    discount = min(float(valid_coupon['discount_value']), subtotal)
+                elif valid_coupon['discount_type'] == 'free_delivery':
+                    final_delivery_fee = 0
+    
+    total = subtotal - discount + final_delivery_fee + handling_fee
+    
+    return {
+        'subtotal': round(subtotal, 2),
+        'discount': round(discount, 2),
+        'delivery_fee': round(final_delivery_fee, 2),
+        'handling_fee': round(handling_fee, 2),
+        'total': round(total, 2)
+    }
 
 @order_bp.route('/', methods=['GET'])
-def get_user_orders():
-    """Get user's order history"""
+@token_required
+def get_user_orders(current_user):
+    """
+    🔒 SECURED: Get user's order history (authenticated users only)
+    """
     try:
-        phone = request.args.get('phone')
-        if not phone:
-            return jsonify({"success": False, "error": "Phone number required"}), 400
-        
-        # Get user ID
-        user_query = "SELECT id FROM users WHERE phone = %s"
-        user = db.execute_query_one(user_query, (phone,))
+        # 🔒 SECURITY: Only show orders for authenticated user
+        user_id = current_user['id']
+        phone = current_user['phone']
         
         query = """
             SELECT o.*, 
@@ -37,13 +97,12 @@ def get_user_orders():
                    ) as items
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.phone = %s OR (o.user_id = %s)
+            WHERE o.user_id = %s
             GROUP BY o.id
             ORDER BY o.created_at DESC
         """
         
-        user_id = user['id'] if user else None
-        orders = db.execute_query(query, (phone, user_id), fetch=True)
+        orders = db.execute_query(query, (user_id,), fetch=True)
         
         # Get timeline for each order
         for order in orders:
@@ -63,12 +122,15 @@ def get_user_orders():
         })
         
     except Exception as e:
-        logger.error(f"Error fetching orders: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"❌ Error fetching orders: {e}")
+        return jsonify({"success": False, "error": "Failed to fetch orders"}), 500
 
 @order_bp.route('/<order_id>', methods=['GET'])
-def get_order_by_id(order_id):
-    """Get specific order details"""
+@token_required
+def get_order_by_id(current_user, order_id):
+    """
+    🔒 SECURED: Get specific order details (owner only)
+    """
     try:
         query = """
             SELECT o.*, 
@@ -93,6 +155,12 @@ def get_order_by_id(order_id):
         if not order:
             return jsonify({"success": False, "error": "Order not found"}), 404
         
+        # 🔒 SECURITY: Verify order ownership (users can only see their own orders, admins can see all)
+        if not current_user.get('is_admin'):
+            if order.get('user_id') != current_user['id']:
+                logger.warning(f"❌ User {current_user['id']} attempted to access order {order_id} belonging to user {order.get('user_id')}")
+                return jsonify({"success": False, "error": "Unauthorized access to order"}), 403
+        
         # Get timeline
         timeline_query = """
             SELECT status, timestamp, completed, notes 
@@ -110,74 +178,82 @@ def get_order_by_id(order_id):
         })
         
     except Exception as e:
-        logger.error(f"Error fetching order {order_id}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"❌ Error fetching order {order_id}: {e}")
+        return jsonify({"success": False, "error": "Failed to fetch order"}), 500
 
 @order_bp.route('/create', methods=['POST'])
-def create_order():
-    """Create a new order"""
+@token_required
+def create_order(current_user):
+    """
+    🔒 SECURED: Create a new order with authentication and validation
+    """
     try:
         data = request.get_json()
         
-        required_fields = ['phone', 'items', 'delivery_address']
-        if not all(field in data for field in required_fields):
-            return jsonify({"success": False, "error": "Phone, items, and delivery_address are required"}), 400
+        # 🔒 Validate order data
+        validation_result = InputValidator.validate_order_data(data)
+        if not validation_result['valid']:
+            return jsonify({"success": False, "error": validation_result['error']}), 400
         
-        if not data['items']:
+        # 🔒 SECURITY: Use authenticated user's phone instead of client-provided
+        phone = current_user['phone']
+        user_id = current_user['id']
+        user_name = current_user.get('name', 'User')
+        
+        # 🔒 Validate delivery address
+        if 'delivery_address' in data:
+            address_validation = InputValidator.validate_address(data['delivery_address'])
+            if not address_validation['valid']:
+                return jsonify({"success": False, "error": f"Invalid address: {address_validation['error']}"}), 400
+        
+        # 🔒 Calculate totals from DATABASE (prevent price manipulation)
+        items = data.get('items', [])
+        if not items:
             return jsonify({"success": False, "error": "Order must contain at least one item"}), 400
         
-        # Get user details
-        user_query = "SELECT id, name FROM users WHERE phone = %s"
-        user = db.execute_query_one(user_query, (data['phone'],))
-        user_id = user['id'] if user else None
-        user_name = user['name'] if user else 'Guest'
+        # Calculate order total using backend validation
+        delivery_fee = float(data.get('delivery_fee', 20.00))
+        handling_fee = float(data.get('handling_fee', 0.00))
+        coupon_code = data.get('coupon_code')
         
-        # Calculate totals
-        subtotal = 0
-        order_items = []
+        total_calculation = calculate_order_total(items, delivery_fee, handling_fee, coupon_code)
         
-        for item in data['items']:
-            if not all(k in item for k in ['product_id', 'quantity']):
-                return jsonify({"success": False, "error": "Each item must have product_id and quantity"}), 400
-            
-            # Get product details
-            product_query = "SELECT name, price, stock FROM products WHERE id = %s AND status = 'active'"
-            product = db.execute_query_one(product_query, (item['product_id'],))
-            
-            if not product:
-                return jsonify({"success": False, "error": f"Product {item['product_id']} not found"}), 404
-            
-            if product['stock'] < item['quantity']:
-                return jsonify({"success": False, "error": f"Insufficient stock for {product['name']}"}), 400
-            
-            item_total = float(product['price']) * item['quantity']
-            subtotal += item_total
-            
-            order_items.append({
-                'product_id': item['product_id'],
-                'product_name': product['name'],
-                'product_price': float(product['price']),
-                'quantity': item['quantity'],
-                'total_price': item_total
-            })
+        if not total_calculation['success']:
+            return jsonify({"success": False, "error": total_calculation['error']}), 400
         
-        delivery_fee = data.get('delivery_fee', 20.00)
-        total = subtotal + delivery_fee
+        # 🔒 SECURITY: Verify client-sent total matches backend calculation (prevent manipulation)
+        client_total = float(data.get('total', 0))
+        backend_total = total_calculation['total']
+        
+        # Allow small floating point differences (0.01)
+        if abs(client_total - backend_total) > 0.01:
+            logger.warning(f"❌ Price manipulation detected! User {user_id} sent total={client_total}, actual={backend_total}")
+            return jsonify({
+                "success": False, 
+                "error": "Price mismatch detected. Please refresh and try again."
+            }), 400
+        
+        subtotal = total_calculation['subtotal']
+        total = backend_total
+        discount = total_calculation.get('discount', 0)
+        order_items = total_calculation['items']
+        
         order_id = generate_order_id()
         
         # Create order
         order_query = """
             INSERT INTO orders (id, user_id, phone, user_name, total, subtotal, delivery_fee,
-                              status, payment_status, payment_method, delivery_address)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending', %s, %s, %s)
+                              status, payment_status, payment_method, delivery_address, discount)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending', %s, %s, %s, %s)
             RETURNING *
         """
         
         order_params = (
-            order_id, user_id, data['phone'], user_name, total, subtotal, delivery_fee,
-            data.get('payment_status', 'completed'),
+            order_id, user_id, phone, user_name, total, subtotal, delivery_fee,
+            data.get('payment_status', 'pending'),
             data.get('payment_method', 'cash'),
-            data['delivery_address']
+            data.get('delivery_address', ''),
+            discount
         )
         
         order_result = db.execute_query(order_query, order_params, fetch=True)
@@ -185,7 +261,7 @@ def create_order():
         if not order_result:
             return jsonify({"success": False, "error": "Failed to create order"}), 500
         
-        # Insert order items
+        # Insert order items and update stock
         for item in order_items:
             item_query = """
                 INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity, total_price)
@@ -196,10 +272,17 @@ def create_order():
                 item['product_price'], item['quantity'], item['total_price']
             ))
             
-            # Update product stock
+            # 🔒 SECURITY: Update product stock (prevent overselling)
             db.execute_query(
                 "UPDATE products SET stock = stock - %s WHERE id = %s",
                 (item['quantity'], item['product_id'])
+            )
+        
+        # Mark coupon as used if applicable
+        if coupon_code and discount > 0:
+            db.execute_query(
+                "UPDATE coupons SET used_count = used_count + 1 WHERE code = %s",
+                (coupon_code,)
             )
         
         # Create initial timeline entry
@@ -210,8 +293,9 @@ def create_order():
         db.execute_query(timeline_query, (order_id,))
         
         # Clear user's cart after successful order
-        if user_id:
-            db.execute_query("DELETE FROM cart_items WHERE user_id = %s OR phone = %s", (user_id, data['phone']))
+        db.execute_query("DELETE FROM cart_items WHERE user_id = %s", (user_id,))
+        
+        logger.info(f"✅ Order {order_id} created successfully for user {user_id}")
         
         return jsonify({
             "success": True,
@@ -221,23 +305,31 @@ def create_order():
         }), 201
         
     except Exception as e:
-        logger.error(f"Error creating order: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"❌ Error creating order: {e}")
+        return jsonify({"success": False, "error": "Failed to create order"}), 500
 
 @order_bp.route('/<order_id>/status', methods=['PUT'])
-def update_order_status(order_id):
-    """Update order status (Admin only)"""
+@admin_required
+def update_order_status(current_user, order_id):
+    """
+    🔒 SECURED: Update order status (Admin only)
+    """
     try:
         data = request.get_json()
         
         if 'status' not in data:
             return jsonify({"success": False, "error": "Status is required"}), 400
         
-        new_status = data['status']
+        new_status = InputValidator.sanitize_string(data['status'], max_length=50)
         valid_statuses = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled']
         
         if new_status not in valid_statuses:
             return jsonify({"success": False, "error": "Invalid status"}), 400
+        
+        # 🔒 Sanitize notes if provided
+        notes = ''
+        if 'notes' in data and data['notes']:
+            notes = InputValidator.sanitize_string(data['notes'], max_length=500)
         
         # Update order status
         update_query = """
@@ -267,7 +359,7 @@ def update_order_status(order_id):
         }
         
         status_message = status_messages.get(new_status, new_status.title())
-        db.execute_query(timeline_query, (order_id, status_message, data.get('notes', '')))
+        db.execute_query(timeline_query, (order_id, status_message, notes))
         
         # If delivered, update actual delivery time
         if new_status == 'delivered':
@@ -276,6 +368,8 @@ def update_order_status(order_id):
                 (order_id,)
             )
         
+        logger.info(f"✅ Admin {current_user['id']} updated order {order_id} to {new_status}")
+        
         return jsonify({
             "success": True,
             "order": dict(result[0]),
@@ -283,8 +377,8 @@ def update_order_status(order_id):
         })
         
     except Exception as e:
-        logger.error(f"Error updating order status: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"❌ Error updating order status: {e}")
+        return jsonify({"success": False, "error": "Failed to update order status"}), 500
 
 @order_bp.route('/stats', methods=['GET'])
 def get_order_stats():

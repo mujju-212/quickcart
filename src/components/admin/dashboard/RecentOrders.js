@@ -4,8 +4,8 @@ import { FaEye, FaEdit } from 'react-icons/fa';
 
 const RecentOrders = () => {
   const recentOrders = [
-    { id: 'BLK002', customer: 'Jane Smith', amount: 60, status: 'PENDING', date: '2024-01-16' },
-    { id: 'BLK001', customer: 'John Doe', amount: 300, status: 'DELIVERED', date: '2024-01-15' }
+    { id: 'QC002', customer: 'Jane Smith', amount: 60, status: 'PENDING', date: '2024-01-16' },
+    { id: 'QC001', customer: 'John Doe', amount: 300, status: 'DELIVERED', date: '2024-01-15' }
   ];
 
   const getStatusBadgeVariant = (status) => {

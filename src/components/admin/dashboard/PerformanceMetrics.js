@@ -73,45 +73,66 @@ const PerformanceMetrics = () => {
   return (
     <Card className="shadow-sm border-0" style={{ borderRadius: '15px' }}>
       <Card.Header 
+        className="bg-white border-0"
         style={{ 
-          backgroundColor: '#fff', 
-          borderBottom: '2px solid #ffd60a', 
-          borderRadius: '15px 15px 0 0' 
+          borderRadius: '15px 15px 0 0',
+          padding: '20px'
         }}
       >
-        <h5 className="mb-0" style={{ color: '#333', fontWeight: 'bold' }}>
-          Performance Metrics
-        </h5>
+        <div>
+          <h5 className="mb-1" style={{ color: '#333', fontWeight: 'bold' }}>
+            <i className="fas fa-tachometer-alt me-2" style={{ color: '#ffe01b' }}></i>
+            Performance Metrics
+          </h5>
+          <small className="text-muted">Real-time business indicators</small>
+        </div>
       </Card.Header>
-      <Card.Body>
+      <Card.Body className="p-3">
         <Row>
           {metrics.map((metric, index) => (
-            <Col md={4} key={index} className="mb-3">
+            <Col md={4} lg={2} key={index} className="mb-3">
               <div 
                 className="p-3 h-100" 
                 style={{ 
-                  backgroundColor: '#f8f9fa', 
-                  borderRadius: '10px',
-                  border: '1px solid #e9ecef'
+                  backgroundColor: '#fff', 
+                  borderRadius: '12px',
+                  border: '2px solid #f0f0f0',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#ffe01b';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#f0f0f0';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <div className="d-flex justify-content-between align-items-start mb-2">
-                  <small className="text-muted">{metric.title}</small>
-                  <Badge 
-                    bg="light" 
-                    text="dark"
-                    style={{ 
-                      color: getTrendColor(metric.trend),
-                      backgroundColor: `${getTrendColor(metric.trend)}20`,
-                      border: `1px solid ${getTrendColor(metric.trend)}40`
-                    }}
-                  >
-                    {getTrendIcon(metric.trend)} {metric.change}
-                  </Badge>
+                <div className="mb-3">
+                  <small className="text-muted d-block" style={{ fontSize: '11px', fontWeight: '600' }}>
+                    {metric.title}
+                  </small>
                 </div>
-                <h4 style={{ color: '#333', fontWeight: 'bold', margin: 0 }}>
+                <h3 style={{ color: '#333', fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '1.8rem' }}>
                   {metric.value}
-                </h4>
+                </h3>
+                <Badge 
+                  className="d-inline-flex align-items-center gap-1"
+                  style={{ 
+                    color: getTrendColor(metric.trend),
+                    backgroundColor: `${getTrendColor(metric.trend)}15`,
+                    border: `1px solid ${getTrendColor(metric.trend)}30`,
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    padding: '4px 8px'
+                  }}
+                >
+                  {getTrendIcon(metric.trend)}
+                  <span>{metric.change}</span>
+                </Badge>
               </div>
             </Col>
           ))}

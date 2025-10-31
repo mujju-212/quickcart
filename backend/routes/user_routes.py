@@ -66,7 +66,7 @@ def register_user():
                 RETURNING *
             """
             
-            email = data.get('email', f"{data['phone']}@blinkbasket.com")
+            email = data.get('email', f"{data['phone']}@quickcart.com")
             result = db.execute_query(insert_query, (data['name'], data['phone'], email), fetch=True)
         
         if result:

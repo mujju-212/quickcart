@@ -22,9 +22,14 @@ const BannerManagement = () => {
     loadBanners();
   }, []);
 
-  const loadBanners = () => {
-    const allBanners = bannerService.getAllBanners();
-    setBanners(allBanners);
+  const loadBanners = async () => {
+    try {
+      const allBanners = await bannerService.getAllBanners();
+      setBanners(Array.isArray(allBanners) ? allBanners : []);
+    } catch (error) {
+      console.error('Error loading banners:', error);
+      setBanners([]);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -176,40 +181,60 @@ const BannerManagement = () => {
                     {banners.map(banner => (
                       <tr key={banner.id}>
                         <td>
-                          <img 
-                            src={banner.image} 
-                            alt={banner.title}
-                            style={{ width: '80px', height: '40px', objectFit: 'cover', borderRadius: '8px' }}
-                          />
+                          {banner.image_url ? (
+                            <img 
+                              src={banner.image_url} 
+                              alt={banner.title}
+                              style={{ width: '80px', height: '40px', objectFit: 'cover', borderRadius: '8px' }}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="40"%3E%3Crect width="80" height="40" fill="%23ffe01b"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="16" fill="%23000"%3E%F0%9F%8E%A8%20Banner%3C/text%3E%3C/svg%3E';
+                              }}
+                            />
+                          ) : (
+                            <div 
+                              className="d-flex align-items-center justify-content-center"
+                              style={{ 
+                                width: '80px', 
+                                height: '40px', 
+                                backgroundColor: '#ffe01b', 
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              🎨 Banner
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div className="fw-bold">{banner.title}</div>
                           <div className="text-muted small">{banner.description}</div>
                         </td>
                         <td>
-                          <span className={`badge ${getBannerTypeColor(banner.type)}`}>
-                            {banner.type.replace('_', ' ')}
+                          <span className={`badge ${getBannerTypeColor(banner.type || 'home')}`}>
+                            {(banner.type || 'home').replace('_', ' ')}
                           </span>
                         </td>
                         <td>
                           <div className="small">
-                            <div>Start: {new Date(banner.startDate).toLocaleDateString()}</div>
-                            <div>End: {new Date(banner.endDate).toLocaleDateString()}</div>
-                            {isExpired(banner.endDate) && <span className="badge bg-danger">Expired</span>}
-                            {isUpcoming(banner.startDate) && <span className="badge bg-info">Upcoming</span>}
+                            <div>Start: {banner.startDate ? new Date(banner.startDate).toLocaleDateString() : 'N/A'}</div>
+                            <div>End: {banner.endDate ? new Date(banner.endDate).toLocaleDateString() : 'N/A'}</div>
+                            {banner.endDate && isExpired(banner.endDate) && <span className="badge bg-danger">Expired</span>}
+                            {banner.startDate && isUpcoming(banner.startDate) && <span className="badge bg-info">Upcoming</span>}
                           </div>
                         </td>
                         <td>
                           <span 
-                            className={`badge ${banner.status === 'active' ? 'bg-success' : 'bg-secondary'}`}
+                            className={`badge ${(banner.status || 'active') === 'active' ? 'bg-success' : 'bg-secondary'}`}
                             style={{ cursor: 'pointer' }}
                             onClick={() => toggleBannerStatus(banner.id)}
                           >
-                            {banner.status === 'active' ? 'Active' : 'Inactive'}
+                            {(banner.status || 'active') === 'active' ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td>
-                          <span className="badge bg-primary">#{banner.position}</span>
+                          <span className="badge bg-primary">#{banner.position || 1}</span>
                         </td>
                         <td>
                           <div className="btn-group">

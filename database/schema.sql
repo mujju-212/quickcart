@@ -1,4 +1,4 @@
--- Blink Basket Database Schema
+-- QuickCart Database Schema
 -- PostgreSQL Database Setup
 
 -- Drop existing tables if they exist (for clean setup)
@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS products CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
 DROP TABLE IF EXISTS banners CASCADE;
+DROP TABLE IF EXISTS offers CASCADE;
 
 -- Create Categories table
 CREATE TABLE categories (
@@ -150,6 +151,28 @@ CREATE TABLE banners (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create Offers table (for promotional offers)
+CREATE TABLE offers (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_type VARCHAR(20) NOT NULL CHECK (discount_type IN ('percentage', 'fixed', 'free_delivery')),
+    discount_value DECIMAL(10,2) NOT NULL,
+    min_order_value DECIMAL(10,2) DEFAULT 0,
+    max_discount_amount DECIMAL(10,2),
+    image_url TEXT,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    usage_limit INTEGER DEFAULT 1000,
+    used_count INTEGER DEFAULT 0,
+    applicable_categories TEXT DEFAULT 'all',
+    offer_type VARCHAR(20) DEFAULT 'general' CHECK (offer_type IN ('general', 'first_order', 'free_delivery', 'weekend_special')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_products_category ON products(category_id);
 CREATE INDEX idx_products_status ON products(status);
@@ -160,6 +183,9 @@ CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_order_items_order ON order_items(order_id);
 CREATE INDEX idx_cart_user ON cart_items(user_id);
 CREATE INDEX idx_wishlist_user ON wishlist_items(user_id);
+CREATE INDEX idx_offers_code ON offers(code);
+CREATE INDEX idx_offers_status ON offers(status);
+CREATE INDEX idx_offers_dates ON offers(start_date, end_date);
 
 -- Create triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -177,6 +203,7 @@ CREATE TRIGGER update_addresses_updated_at BEFORE UPDATE ON user_addresses FOR E
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_cart_updated_at BEFORE UPDATE ON cart_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_banners_updated_at BEFORE UPDATE ON banners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_offers_updated_at BEFORE UPDATE ON offers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default categories
 INSERT INTO categories (name, image_url, status) VALUES
@@ -196,10 +223,16 @@ INSERT INTO categories (name, image_url, status) VALUES
 
 -- Insert default admin user
 INSERT INTO users (name, phone, email, role, status) VALUES
-('Admin', 'admin', 'admin@blinkbasket.com', 'admin', 'active');
+('Admin', 'admin', 'admin@quickcart.com', 'admin', 'active');
 
 -- Insert default banners
 INSERT INTO banners (title, subtitle, image_url, status, display_order) VALUES
 ('Fresh Groceries', 'Delivered in 10 minutes', 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&h=400&fit=crop&q=80', 'active', 1),
 ('Special Offers', 'Up to 50% off on selected items', 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=400&fit=crop&q=80', 'active', 2),
 ('Organic Products', 'Farm fresh organic vegetables', 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=800&h=400&fit=crop&q=80', 'active', 3);
+
+-- Insert default offers
+INSERT INTO offers (title, description, code, discount_type, discount_value, min_order_value, max_discount_amount, image_url, status, start_date, end_date, offer_type) VALUES
+('First Order', 'Use code: FIRST20', 'FIRST20', 'percentage', 20, 299, 100, 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=200&fit=crop&q=80', 'active', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'first_order'),
+('Free Delivery', 'No delivery charges', 'FREEDEL999', 'free_delivery', 0, 999, 40, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop&q=80', 'active', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'free_delivery'),
+('Weekend Special', 'On orders above ₹1500', 'WEEKEND100', 'fixed', 100, 1500, 100, 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=200&fit=crop&q=80', 'active', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'weekend_special');

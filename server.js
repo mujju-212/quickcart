@@ -4,7 +4,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5002;
 
 // Middleware
 app.use(cors());
@@ -46,7 +46,7 @@ app.post('/api/send-otp', async (req, res) => {
     });
 
     // Prepare Fast2SMS request
-    const message = `Your Blinkit OTP is: ${otp}. Valid for 5 minutes. Do not share with anyone.`;
+    const message = `Your QuickCart OTP is: ${otp}. Valid for 5 minutes. Do not share with anyone.`;
     
     const params = {
       authorization: FAST2SMS_API_KEY,

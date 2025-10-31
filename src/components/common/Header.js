@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import LocationModal from './LocationModal';
+import categoryService from '../../services/categoryService';
 
 const Header = () => {
   const { cart, getCartItemsCount } = useCart();
@@ -12,6 +13,23 @@ const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [currentLocation, setCurrentLocation] = useState('Nagawara, Bengaluru');
+  const [categories, setCategories] = useState([]);
+
+  // Load categories from database
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoriesData = await categoryService.getAllCategories();
+        if (categoriesData && Array.isArray(categoriesData)) {
+          setCategories(categoriesData);
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+    
+    loadCategories();
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -39,7 +57,7 @@ const Header = () => {
           // Show notification
           const notification = document.createElement('div');
           notification.innerHTML = `
-            <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1055; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
               <i class="fas fa-map-marker-alt me-2"></i>
               Location updated to ${randomLocation}
             </div>
@@ -85,7 +103,7 @@ const Header = () => {
             >
               <i className="fas fa-bolt"></i>
             </span>
-            blinkit
+            QuickCart
           </Navbar.Brand>
 
           {/* Location Selector */}
@@ -159,25 +177,40 @@ const Header = () => {
                   <i className="fas fa-th-large me-1"></i>
                   Categories
                 </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  <Dropdown.Item onClick={() => navigate('/search?category=Fruits%20%26%20Vegetables')}>
-                    🥬 Fruits & Vegetables
-                  </Dropdown.Item>
-                  <Dropdown.Item onClick={() => navigate('/search?category=Dairy%20%26%20Breakfast')}>
-                    🥛 Dairy & Breakfast
-                  </Dropdown.Item>
-                  <Dropdown.Item onClick={() => navigate('/search?category=Beverages')}>
-                    🥤 Beverages
-                  </Dropdown.Item>
-                  <Dropdown.Item onClick={() => navigate('/search?category=Snacks%20%26%20Munchies')}>
-                    🍿 Snacks & Munchies
-                  </Dropdown.Item>
-                  <Dropdown.Item onClick={() => navigate('/search?category=Personal%20Care')}>
-                    🧴 Personal Care
-                  </Dropdown.Item>
-                  <Dropdown.Item onClick={() => navigate('/search?category=Home%20Care')}>
-                    🧽 Home Care
-                  </Dropdown.Item>
+                <Dropdown.Menu style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  {categories.length > 0 ? (
+                    categories.map((category) => (
+                      <Dropdown.Item 
+                        key={category.id}
+                        onClick={() => navigate(`/search?category=${encodeURIComponent(category.name)}`)}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          padding: '8px 16px',
+                          gap: '12px'
+                        }}
+                      >
+                        <img 
+                          src={category.image_url || category.image} 
+                          alt={category.name}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            objectFit: 'cover',
+                            borderRadius: '6px',
+                            border: '1px solid #e0e0e0'
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.textContent = `📦 ${category.name}`;
+                          }}
+                        />
+                        <span style={{ fontSize: '14px' }}>{category.name}</span>
+                      </Dropdown.Item>
+                    ))
+                  ) : (
+                    <Dropdown.Item disabled>Loading categories...</Dropdown.Item>
+                  )}
                 </Dropdown.Menu>
               </Dropdown>
 

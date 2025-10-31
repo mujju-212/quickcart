@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class CartService {
   constructor() {
@@ -7,14 +7,8 @@ class CartService {
 
   async makeRequest(endpoint, options = {}) {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
       const defaultHeaders = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       };
 
       const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -36,60 +30,62 @@ class CartService {
     }
   }
 
-  async getCart() {
+  async getCart(phone) {
     try {
-      const response = await this.makeRequest('/cart');
-      return response.cart || [];
+      const response = await this.makeRequest(`/cart?phone=${phone}`);
+      return response;
     } catch (error) {
       console.error('Error fetching cart:', error);
-      return [];
+      return { success: false, cart: [] };
     }
   }
 
-  async addToCart(productId, quantity = 1) {
+  async addToCart(phone, productId, quantity = 1) {
     try {
       const response = await this.makeRequest('/cart/add', {
         method: 'POST',
-        body: JSON.stringify({ product_id: productId, quantity })
+        body: JSON.stringify({ phone, product_id: productId, quantity })
       });
-      return response.cart || [];
+      return response;
     } catch (error) {
       console.error('Error adding to cart:', error);
       throw error;
     }
   }
 
-  async removeFromCart(productId) {
+  async removeFromCart(phone, productId) {
     try {
-      const response = await this.makeRequest(`/cart/remove/${productId}`, {
-        method: 'DELETE'
+      const response = await this.makeRequest('/cart/remove', {
+        method: 'DELETE',
+        body: JSON.stringify({ phone, product_id: productId })
       });
-      return response.cart || [];
+      return response;
     } catch (error) {
       console.error('Error removing from cart:', error);
       throw error;
     }
   }
 
-  async updateQuantity(productId, quantity) {
+  async updateQuantity(phone, productId, quantity) {
     try {
       const response = await this.makeRequest('/cart/update', {
         method: 'PUT',
-        body: JSON.stringify({ product_id: productId, quantity })
+        body: JSON.stringify({ phone, product_id: productId, quantity })
       });
-      return response.cart || [];
+      return response;
     } catch (error) {
       console.error('Error updating cart quantity:', error);
       throw error;
     }
   }
 
-  async clearCart() {
+  async clearCart(phone) {
     try {
-      const response = await this.makeRequest('/cart/clear', {
+      // Backend expects phone as query parameter for DELETE /cart/clear
+      const response = await this.makeRequest(`/cart/clear?phone=${phone}`, {
         method: 'DELETE'
       });
-      return response.cart || [];
+      return response;
     } catch (error) {
       console.error('Error clearing cart:', error);
       throw error;

@@ -1,46 +1,103 @@
-import { authService } from './authService';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class AddressService {
-  getAddresses() {
-    const addresses = localStorage.getItem('addresses');
-    return addresses ? JSON.parse(addresses) : [];
+  constructor() {
+    this.baseURL = API_BASE_URL;
   }
 
-  saveAddresses(addresses) {
-    localStorage.setItem('addresses', JSON.stringify(addresses));
-  }
+  async makeRequest(endpoint, options = {}) {
+    try {
+      const defaultHeaders = {
+        'Content-Type': 'application/json'
+      };
 
-  addAddress(address) {
-    const addresses = this.getAddresses();
-    const newAddress = {
-      id: Date.now(),
-      ...address
-    };
-    
-    addresses.push(newAddress);
-    this.saveAddresses(addresses);
-    return newAddress;
-  }
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
 
-  updateAddress(id, updatedAddress) {
-    const addresses = this.getAddresses();
-    const index = addresses.findIndex(addr => addr.id === id);
-    
-    if (index !== -1) {
-      addresses[index] = { ...addresses[index], ...updatedAddress };
-      this.saveAddresses(addresses);
-      return addresses[index];
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Address API request failed:', error);
+      throw error;
     }
-    
-    return null;
   }
 
-  deleteAddress(id) {
-    const addresses = this.getAddresses();
-    const filteredAddresses = addresses.filter(addr => addr.id !== id);
-    this.saveAddresses(filteredAddresses);
-    return true;
+  async getUserAddresses(phone) {
+    try {
+      const response = await this.makeRequest(`/users/addresses?phone=${phone}`);
+      return response;
+    } catch (error) {
+      console.error('Error fetching addresses:', error);
+      // Fallback to localStorage
+      const addresses = localStorage.getItem('addresses');
+      return { success: false, addresses: addresses ? JSON.parse(addresses) : [] };
+    }
+  }
+
+  async addAddress(phone, addressData) {
+    try {
+      const response = await this.makeRequest('/users/addresses', {
+        method: 'POST',
+        body: JSON.stringify({ phone, ...addressData })
+      });
+      return response;
+    } catch (error) {
+      console.error('Error adding address:', error);
+      // Fallback to localStorage
+      const addresses = localStorage.getItem('addresses');
+      const addressList = addresses ? JSON.parse(addresses) : [];
+      const newAddress = { id: Date.now(), ...addressData };
+      addressList.push(newAddress);
+      localStorage.setItem('addresses', JSON.stringify(addressList));
+      return { success: true, address: newAddress };
+    }
+  }
+
+  async updateAddress(addressId, addressData) {
+    try {
+      const response = await this.makeRequest(`/users/addresses/${addressId}`, {
+        method: 'PUT',
+        body: JSON.stringify(addressData)
+      });
+      return response;
+    } catch (error) {
+      console.error('Error updating address:', error);
+      throw error;
+    }
+  }
+
+  async deleteAddress(addressId) {
+    try {
+      const response = await this.makeRequest(`/users/addresses/${addressId}`, {
+        method: 'DELETE'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error deleting address:', error);
+      throw error;
+    }
+  }
+
+  async setDefaultAddress(addressId) {
+    try {
+      const response = await this.makeRequest(`/users/addresses/${addressId}/default`, {
+        method: 'PUT'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error setting default address:', error);
+      throw error;
+    }
   }
 }
 
-export default new AddressService();
+export const addressService = new AddressService();
+export default addressService;

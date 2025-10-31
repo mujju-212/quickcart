@@ -1,47 +1,94 @@
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+
 class WishlistService {
-  getWishlist() {
-    const wishlist = localStorage.getItem('wishlist');
-    return wishlist ? JSON.parse(wishlist) : [];
+  constructor() {
+    this.baseURL = API_BASE_URL;
   }
 
-  saveWishlist(wishlist) {
-    localStorage.setItem('wishlist', JSON.stringify(wishlist));
-  }
+  async makeRequest(endpoint, options = {}) {
+    try {
+      const defaultHeaders = {
+        'Content-Type': 'application/json'
+      };
 
-  addToWishlist(product) {
-    const wishlist = this.getWishlist();
-    const exists = wishlist.find(item => item.id === product.id);
-    
-    if (!exists) {
-      wishlist.push(product);
-      this.saveWishlist(wishlist);
-    }
-    
-    return wishlist;
-  }
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
 
-  removeFromWishlist(productId) {
-    const wishlist = this.getWishlist();
-    const filteredWishlist = wishlist.filter(item => item.id !== productId);
-    this.saveWishlist(filteredWishlist);
-    return filteredWishlist;
-  }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-  toggleWishlist(product) {
-    const wishlist = this.getWishlist();
-    const exists = wishlist.find(item => item.id === product.id);
-    
-    if (exists) {
-      return this.removeFromWishlist(product.id);
-    } else {
-      return this.addToWishlist(product);
+      return await response.json();
+    } catch (error) {
+      console.error('Wishlist API request failed:', error);
+      throw error;
     }
   }
 
-  isInWishlist(productId) {
-    const wishlist = this.getWishlist();
-    return wishlist.some(item => item.id === productId);
+  async getWishlist(phone) {
+    try {
+      const response = await this.makeRequest(`/wishlist?phone=${phone}`);
+      return response;
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+      return { success: false, wishlist: [] };
+    }
+  }
+
+  async addToWishlist(phone, productId) {
+    try {
+      const response = await this.makeRequest('/wishlist/add', {
+        method: 'POST',
+        body: JSON.stringify({ phone, product_id: productId })
+      });
+      return response;
+    } catch (error) {
+      console.error('Error adding to wishlist:', error);
+      throw error;
+    }
+  }
+
+  async removeFromWishlist(phone, productId) {
+    try {
+      const response = await this.makeRequest('/wishlist/remove', {
+        method: 'DELETE',
+        body: JSON.stringify({ phone, product_id: productId })
+      });
+      return response;
+    } catch (error) {
+      console.error('Error removing from wishlist:', error);
+      throw error;
+    }
+  }
+
+  async clearWishlist(phone) {
+    try {
+      const response = await this.makeRequest('/wishlist/clear', {
+        method: 'DELETE',
+        body: JSON.stringify({ phone })
+      });
+      return response;
+    } catch (error) {
+      console.error('Error clearing wishlist:', error);
+      throw error;
+    }
+  }
+
+  async checkInWishlist(phone, productId) {
+    try {
+      const response = await this.makeRequest(`/wishlist/check/${productId}?phone=${phone}`);
+      return response;
+    } catch (error) {
+      console.error('Error checking wishlist:', error);
+      return { success: false, in_wishlist: false };
+    }
   }
 }
 
-export default new WishlistService();
+export const wishlistService = new WishlistService();
+export default wishlistService;

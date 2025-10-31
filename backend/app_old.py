@@ -37,7 +37,7 @@ def health_check():
     
     return jsonify({
         'success': True,
-        'message': 'Blinkit Backend API is running',
+        'message': 'QuickCart Backend API is running',
         'services': {
             'sms': sms_services,
             'database': False,  # TODO: Add database check
@@ -51,7 +51,7 @@ def health_check():
 def api_info():
     """API information endpoint"""
     return jsonify({
-        'message': 'Blinkit Backend API',
+        'message': 'QuickCart Backend API',
         'version': '1.0.0',
         'endpoints': {
             'health': '/api/health',
@@ -89,7 +89,7 @@ def internal_error(error):
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("🚀 Starting Blinkit Backend Server...")
+    print("🚀 Starting QuickCart Backend Server...")
     print("=" * 50)
     
     # Validate SMS configuration

@@ -3,6 +3,7 @@ import { Container, Alert } from 'react-bootstrap';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import productService from '../services/productService';
 import { useCart } from '../context/CartContext';
+import { getImagePlaceholder, getProductImage } from '../utils/helpers';
 
 const SearchResults = () => {
   const [searchParams] = useSearchParams();
@@ -149,12 +150,12 @@ const SearchResults = () => {
               >
                 <div className="position-relative">
                   <img 
-                    src={product.image_url || product.image} 
+                    src={getProductImage(product)} 
                     alt={product.name}
                     className="card-img-top"
                     style={{ height: '180px', objectFit: 'cover' }}
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/180x180/f8f9fa/6c757d?text=' + product.name.substring(0, 10);
+                      e.target.src = getImagePlaceholder(180, 180, product.name.substring(0, 10));
                     }}
                   />
                   {product.originalPrice && (

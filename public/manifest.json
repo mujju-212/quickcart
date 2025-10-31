@@ -1,6 +1,6 @@
 {
-  "name": "Blink Basket - Grocery Delivery",
-  "short_name": "Blink Basket",
+  "name": "QuickCart - Grocery Delivery",
+  "short_name": "QuickCart",
   "description": "Fresh groceries delivered to your doorstep in minutes",
   "start_url": "/",
   "display": "standalone",

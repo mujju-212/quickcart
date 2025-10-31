@@ -12,6 +12,7 @@ const Addresses = () => {
     house: '',
     area: '',
     city: '',
+    state: 'Karnataka',
     pincode: '',
     type: 'home'
   });
@@ -69,6 +70,7 @@ const Addresses = () => {
       house: '',
       area: '',
       city: '',
+      state: 'Karnataka',
       pincode: '',
       type: 'home'
     });
@@ -144,7 +146,7 @@ const Addresses = () => {
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-start">
                     <div>
-                      <h6>{address.name} - {address.type.toUpperCase()}</h6>
+                      <h6>{address.name} - {address.type?.toUpperCase() || 'HOME'}</h6>
                       <p className="mb-1">{address.house}, {address.area}</p>
                       <p className="mb-1">{address.city} - {address.pincode}</p>
                       <p className="text-muted mb-0">{address.phone}</p>
@@ -267,6 +269,29 @@ const Addresses = () => {
                   />
                 </Form.Group>
               </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>State</Form.Label>
+                  <Form.Control
+                    as="select"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="Karnataka">Karnataka</option>
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                    <option value="Maharashtra">Maharashtra</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Gujarat">Gujarat</option>
+                    <option value="Telangana">Telangana</option>
+                    <option value="Other">Other</option>
+                  </Form.Control>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Pincode</Form.Label>

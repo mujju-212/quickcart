@@ -1,49 +1,57 @@
-import { BANNER_SLIDES } from '../utils/constants';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class BannerService {
   constructor() {
-    this.initializeData();
+    this.baseURL = API_BASE_URL;
   }
 
-  initializeData() {
-    const storedBanners = localStorage.getItem('banners');
-    if (!storedBanners) {
-      // Initialize with banners from constants
-      const defaultBanners = BANNER_SLIDES.map((slide, index) => ({
-        id: `banner${slide.id}`,
-        title: slide.title,
-        description: slide.subtitle,
-        image: slide.image,
-        linkUrl: '#',
-        buttonText: slide.buttonText,
-        status: 'active',
-        position: index + 1,
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        type: 'promotion'
-      }));
-      localStorage.setItem('banners', JSON.stringify(defaultBanners));
+  async makeRequest(endpoint, options = {}) {
+    try {
+      const token = localStorage.getItem('authToken');
+      const defaultHeaders = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Banner API request failed:', error);
+      throw error;
     }
   }
 
-  getAllBanners() {
-    const banners = localStorage.getItem('banners');
-    return banners ? JSON.parse(banners).sort((a, b) => a.position - b.position) : [];
+  async getAllBanners() {
+    try {
+      const response = await this.makeRequest('/banners');
+      return response.banners || [];
+    } catch (error) {
+      console.error('Error fetching banners:', error);
+      return [];
+    }
   }
 
-  getBannerById(id) {
-    const banners = this.getAllBanners();
-    return banners.find(banner => banner.id === id);
-  }
-
-  getActiveBanners() {
-    const banners = this.getAllBanners();
-    const now = new Date().toISOString().split('T')[0];
-    return banners.filter(banner => 
-      banner.status === 'active' && 
-      banner.startDate <= now && 
-      banner.endDate >= now
-    );
+  async getActiveBanners() {
+    try {
+      console.log('🎨 Fetching active banners from API...');
+      const response = await this.makeRequest('/banners/active');
+      console.log('🎨 Active banners response:', response);
+      return response.banners || [];
+    } catch (error) {
+      console.error('Error fetching active banners:', error);
+      return [];
+    }
   }
 
   createBanner(bannerData) {

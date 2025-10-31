@@ -31,9 +31,10 @@ def get_user_cart():
         
         cart_items = db.execute_query(query, (user['id'], phone), fetch=True)
         
-        # Calculate totals
-        subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
-        delivery_fee = 20.00 if cart_items else 0
+        # Calculate totals - convert Decimal to float to avoid type errors
+        from decimal import Decimal
+        subtotal = sum(float(item['price']) * item['quantity'] for item in cart_items)
+        delivery_fee = 20.00 if cart_items else 0.00
         total = subtotal + delivery_fee
         
         return jsonify({

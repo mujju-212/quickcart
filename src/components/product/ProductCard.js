@@ -3,11 +3,14 @@ import { Card, Button, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { getImagePlaceholder, getProductImage } from '../../utils/helpers';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const navigate = useNavigate();
+
+  const productImage = getProductImage(product);
 
   const discount = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -21,7 +24,7 @@ const ProductCard = ({ product }) => {
     // Show notification
     const notification = document.createElement('div');
     notification.innerHTML = `
-      <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1055; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         <i class="fas fa-check-circle me-2"></i>
         ${product.name} added to cart!
       </div>
@@ -42,7 +45,7 @@ const ProductCard = ({ product }) => {
     // Show notification
     const notification = document.createElement('div');
     notification.innerHTML = `
-      <div style="position: fixed; top: 20px; right: 20px; background: ${added ? '#dc3545' : '#6c757d'}; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <div style="position: fixed; top: 20px; right: 20px; background: ${added ? '#dc3545' : '#6c757d'}; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1055; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         <i class="fas fa-heart me-2"></i>
         ${added ? 'Added to wishlist!' : 'Removed from wishlist!'}
       </div>
@@ -76,11 +79,11 @@ const ProductCard = ({ product }) => {
       <div className="position-relative">
         <Card.Img 
           variant="top" 
-          src={product.image_url || product.image} 
+          src={productImage} 
           alt={product.name}
           style={{ height: '120px', objectFit: 'cover' }}
           onError={(e) => {
-            e.target.src = `https://via.placeholder.com/120x120/f8f9fa/6c757d?text=${product.name.substring(0, 8)}`;
+            e.target.src = getImagePlaceholder(120, 120, product.name.substring(0, 8));
           }}
         />
         

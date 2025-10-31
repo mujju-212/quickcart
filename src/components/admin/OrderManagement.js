@@ -9,14 +9,33 @@ const OrderManagement = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadOrders();
   }, []);
 
-  const loadOrders = () => {
-    const ordersData = orderService.getAllOrders();
-    setOrders(ordersData.sort((a, b) => new Date(b.date) - new Date(a.date)));
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const ordersData = await orderService.getAllOrders();
+      // Ensure ordersData is an array before sorting
+      if (Array.isArray(ordersData)) {
+        setOrders(ordersData.sort((a, b) => new Date(b.date) - new Date(a.date)));
+        console.log(`📊 Loaded ${ordersData.length} orders successfully`);
+      } else {
+        console.error('Orders data is not an array:', ordersData);
+        setOrders([]);
+      }
+    } catch (error) {
+      console.log('ℹ️ Using demo data for development');
+      setError('Using demo data (backend not connected)');
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusVariant = (status) => {
@@ -76,9 +95,14 @@ const OrderManagement = () => {
     return actions;
   };
 
-  const handleStatusChange = (orderId, newStatus) => {
-    orderService.updateOrderStatus(orderId, newStatus);
-    loadOrders();
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await orderService.updateOrderStatus(orderId, newStatus);
+      loadOrders();
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      // You could add a toast notification here
+    }
   };
 
   const handleViewOrder = (order) => {
@@ -110,20 +134,45 @@ const OrderManagement = () => {
           </Form.Select>
         </Card.Header>
         <Card.Body>
-          <Table responsive hover>
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Items</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map((order) => (
+          {error && (
+            <Alert variant="info" className="mb-3">
+              <i className="fas fa-info-circle me-2"></i>
+              {error}
+            </Alert>
+          )}
+          
+          {loading ? (
+            <div className="text-center py-4">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Loading orders...</span>
+              </div>
+              <div className="mt-2">Loading orders...</div>
+            </div>
+          ) : (
+            <>
+              <Table responsive hover>
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="text-center py-4">
+                        <div className="text-muted">
+                          {filterStatus === 'all' ? 'No orders found' : `No ${filterStatus} orders found`}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map((order) => (
                 <tr key={order.id}>
                   <td>
                     <div className="fw-semibold">{order.id}</div>
@@ -151,8 +200,13 @@ const OrderManagement = () => {
                     </Badge>
                   </td>
                   <td>
-                    <div>{order.date}</div>
-                    <small className="text-muted">{order.timeline[0]?.time}</small>
+                    <div>{new Date(order.date).toLocaleDateString()}</div>
+                    <small className="text-muted">
+                      {order.timeline && order.timeline.length > 0 ? 
+                        new Date(order.timeline[0].time).toLocaleTimeString() : 
+                        'No timeline'
+                      }
+                    </small>
                   </td>
                   <td>
                     <div className="d-flex gap-1">
@@ -186,18 +240,11 @@ const OrderManagement = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-
-          {filteredOrders.length === 0 && (
-            <div className="text-center py-4">
-              <i className="fas fa-shopping-bag fa-3x text-muted mb-3"></i>
-              <h5>No orders found</h5>
-              <p className="text-muted">
-                {filterStatus === 'all' ? 'No orders have been placed yet' : `No ${filterStatus} orders found`}
-              </p>
-            </div>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </>
           )}
         </Card.Body>
       </Card>
@@ -257,8 +304,11 @@ const OrderManagement = () => {
                       <p><strong>Name:</strong> {selectedOrder.customer}</p>
                       <p><strong><FaPhone className="me-1" />Phone:</strong> {selectedOrder.phone}</p>
                       <p><strong><FaEnvelope className="me-1" />Email:</strong> {selectedOrder.email}</p>
-                      <p><strong>Order Date:</strong> {selectedOrder.date}</p>
-                      <p><strong>Order Time:</strong> {selectedOrder.timeline[0]?.time}</p>
+                      <p><strong>Order Date:</strong> {new Date(selectedOrder.date).toLocaleDateString()}</p>
+                      <p><strong>Order Time:</strong> {selectedOrder.timeline && selectedOrder.timeline.length > 0 ? 
+                        new Date(selectedOrder.timeline[0].time).toLocaleTimeString() : 
+                        'No timeline available'
+                      }</p>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -271,7 +321,7 @@ const OrderManagement = () => {
                     </Card.Header>
                     <Card.Body>
                       <p><strong><FaMapMarkerAlt className="me-1" />Address:</strong><br />
-                        <small>{selectedOrder.address}</small>
+                        <small>{selectedOrder.fullAddress || `${selectedOrder.address?.street}, ${selectedOrder.address?.area}, ${selectedOrder.address?.city} - ${selectedOrder.address?.pincode}`}</small>
                       </p>
                       <p><strong><FaCreditCard className="me-1" />Payment Method:</strong> {selectedOrder.paymentMethod}</p>
                       <p><strong>Payment Status:</strong> 

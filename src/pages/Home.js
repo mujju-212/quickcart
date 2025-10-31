@@ -2,54 +2,75 @@ import React, { useState, useEffect } from 'react';
 import { Container } from 'react-bootstrap';
 import categoryService from '../services/categoryService';
 import productService from '../services/productService';
+import bannerService from '../services/bannerService';
+import offersService from '../services/offersService';
 import { useNavigate } from 'react-router-dom';
 import ProductGrid from '../components/product/ProductGrid';
 import CategoryGrid from '../components/product/CategoryGrid';
 import CategoryProductSection from '../components/product/CategoryProductSection';
+import BannerCarousel from '../components/common/BannerCarousel';
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [categoryProducts, setCategoryProducts] = useState({});
   const [popularProducts, setPopularProducts] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const navigate = useNavigate();
 
-  const bannerSlides = [
-    {
-      id: 1,
-      image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&h=300&fit=crop&q=80',
-      title: 'Fresh Groceries',
-      subtitle: 'Delivered in 10 minutes',
-      buttonText: 'Shop Now'
-    },
-    {
-      id: 2,
-      image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&h=300&fit=crop&q=80',
-      title: 'Fresh Fruits',
-      subtitle: 'Farm to your doorstep',
-      buttonText: 'Order Now'
-    },
-    {
-      id: 3,
-      image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=1200&h=300&fit=crop&q=80',
-      title: 'Dairy Fresh',
-      subtitle: 'Pure & healthy dairy products',
-      buttonText: 'Explore'
-    }
-  ];
-
   useEffect(() => {
+    const loadBanners = async () => {
+      try {
+        console.log('🎨 Loading banners from API...');
+        const bannersData = await bannerService.getActiveBanners();
+        console.log('🎨 Banners loaded:', bannersData);
+        setBanners(bannersData);
+      } catch (error) {
+        console.error('❌ Error loading banners:', error);
+        setBanners([]);
+      }
+    };
+
+    const loadOffers = async () => {
+      try {
+        console.log('🎁 Loading offers from API...');
+        const offersData = await offersService.getActiveOffers();
+        console.log('🎁 Offers loaded:', offersData);
+        setOffers(offersData);
+      } catch (error) {
+        console.error('❌ Error loading offers:', error);
+        setOffers([]);
+      }
+    };
+
     const loadCategories = async () => {
       try {
         console.log('🏠 Home page loading categories...');
+        
+        // Test direct API call for debugging
+        try {
+          const directResponse = await fetch('http://localhost:5001/api/categories');
+          const directData = await directResponse.json();
+          console.log('🔍 Direct API test:', directData);
+        } catch (directError) {
+          console.log('⚠️ Direct API test failed:', directError.message);
+        }
+        
+        // DON'T initialize localStorage - we want to use API data
+        // Force clear any existing localStorage data to ensure API is used
+        localStorage.removeItem('categories');
+        
         const response = await categoryService.getActiveCategories();
         console.log('📂 Categories response:', response);
+        console.log('📂 Categories response type:', typeof response);
+        console.log('📂 Categories array:', response?.categories);
         
         if (response && response.categories) {
           setCategories(response.categories);
-          console.log('📂 Categories loaded:', response.categories.length);
+          console.log('📂 Categories loaded successfully:', response.categories.length);
+          console.log('📂 First category sample:', response.categories[0]);
         } else {
           console.error('❌ Invalid categories response:', response);
           setCategories([]);
@@ -102,10 +123,28 @@ const Home = () => {
       }
     };
 
+    // Add debugging function to window for manual testing
+    window.testCategoriesAPI = async () => {
+      try {
+        console.log('🧪 Manual API test started...');
+        const response = await fetch('http://localhost:5001/api/categories');
+        const data = await response.json();
+        console.log('🧪 Manual API test result:', data);
+        return data;
+      } catch (error) {
+        console.log('🧪 Manual API test failed:', error);
+        return null;
+      }
+    };
+
+    // Clear localStorage to force API usage
+    console.log('🗑️ Clearing localStorage to force API calls...');
+    localStorage.removeItem('categories');
+
     // Initial load
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([loadCategories(), loadProducts()]);
+      await Promise.all([loadBanners(), loadOffers(), loadCategories(), loadProducts()]);
       setLoading(false);
     };
     
@@ -164,14 +203,6 @@ const Home = () => {
     };
   }, []);
 
-  // Auto-rotate banner
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentBannerIndex(prev => (prev + 1) % bannerSlides.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [bannerSlides.length]);
-
   if (loading) {
     return (
       <Container className="py-5">
@@ -187,51 +218,8 @@ const Home = () => {
   return (
     <div className="home-page">
       <Container>
-        {/* Banner Section */}
-        <section className="banner-section my-4">
-          <div className="position-relative rounded overflow-hidden shadow">
-            <div 
-              className="banner-slide position-relative"
-              style={{ height: '300px' }}
-            >
-              <img
-                className="w-100 h-100"
-                src={bannerSlides[currentBannerIndex].image}
-                alt={bannerSlides[currentBannerIndex].title}
-                style={{ objectFit: 'cover' }}
-              />
-              <div className="position-absolute top-50 start-0 translate-middle-y text-white ps-5">
-                <h1 className="display-4 fw-bold mb-3" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.7)' }}>
-                  {bannerSlides[currentBannerIndex].title}
-                </h1>
-                <p className="fs-5 mb-4" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>
-                  {bannerSlides[currentBannerIndex].subtitle}
-                </p>
-                <button 
-                  className="btn btn-primary btn-lg"
-                  onClick={() => navigate('/search')}
-                >
-                  {bannerSlides[currentBannerIndex].buttonText}
-                </button>
-              </div>
-            </div>
-            
-            {/* Banner Indicators */}
-            <div className="position-absolute bottom-0 start-50 translate-middle-x mb-3">
-              <div className="d-flex gap-2">
-                {bannerSlides.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`btn btn-sm rounded-circle ${index === currentBannerIndex ? 'btn-light' : 'btn-outline-light'}`}
-                    style={{ width: '12px', height: '12px', padding: 0 }}
-                    onClick={() => setCurrentBannerIndex(index)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
+        {/* Banner Carousel */}
+        <BannerCarousel banners={banners} />
         {/* Categories Section */}
         <section className="categories-section my-5">
           <div className="d-flex justify-content-between align-items-center mb-4">
@@ -250,54 +238,62 @@ const Home = () => {
         <section className="offers-section my-5">
           <h2 className="section-title fw-bold mb-4">Special Offers</h2>
           <div className="row g-3">
-            <div className="col-md-4">
-              <div className="card h-100 border-0 position-relative overflow-hidden">
-                <img 
-                  src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=200&fit=crop&q=80" 
-                  alt="First Order Offer"
-                  className="card-img-top"
-                  style={{ height: '150px', objectFit: 'cover' }}
-                />
-                <div className="card-img-overlay d-flex flex-column justify-content-end text-white" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}>
-                  <h5 className="card-title fw-bold">First Order</h5>
-                  <h3 className="fw-bold text-warning">20% OFF</h3>
-                  <p className="card-text small">Use code: FIRST20</p>
-                  <button className="btn btn-warning btn-sm w-50">Shop Now</button>
+            {offers && offers.length > 0 ? (
+              offers.map((offer) => (
+                <div key={offer.id} className="col-md-4">
+                  <div className="card h-100 border-0 position-relative overflow-hidden" style={{ cursor: 'pointer' }}>
+                    <img 
+                      src={offer.image_url || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=200&fit=crop&q=80'} 
+                      alt={offer.title}
+                      className="card-img-top"
+                      style={{ height: '150px', objectFit: 'cover' }}
+                    />
+                    <div className="card-img-overlay d-flex flex-column justify-content-end text-white p-3" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)' }}>
+                      <h5 className="card-title fw-bold mb-2">{offer.title}</h5>
+                      <h3 className="fw-bold text-warning mb-2">
+                        {offer.discount_type === 'percentage' 
+                          ? `${offer.discount_value}% OFF` 
+                          : offer.discount_type === 'fixed'
+                          ? `₹${offer.discount_value} OFF`
+                          : 'FREE DELIVERY'}
+                      </h3>
+                      <p className="card-text small mb-3">{offer.description}</p>
+                      <button 
+                        className="btn btn-light fw-bold"
+                        style={{ 
+                          width: 'fit-content',
+                          padding: '10px 28px',
+                          backgroundColor: 'white',
+                          color: '#333',
+                          boxShadow: '0 3px 10px rgba(0, 0, 0, 0.3)',
+                          border: '2px solid #f8cb46',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = '#f8cb46';
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 5px 15px rgba(248, 203, 70, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'white';
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.3)';
+                        }}
+                        onClick={() => navigate('/search')}
+                      >
+                        Shop Now
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-12 text-center py-4">
+                <p className="text-muted">No active offers at the moment</p>
               </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card h-100 border-0 position-relative overflow-hidden">
-                <img 
-                  src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop&q=80" 
-                  alt="Free Delivery Offer"
-                  className="card-img-top"
-                  style={{ height: '150px', objectFit: 'cover' }}
-                />
-                <div className="card-img-overlay d-flex flex-column justify-content-end text-white" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}>
-                  <h5 className="card-title fw-bold">Free Delivery</h5>
-                  <h3 className="fw-bold text-warning">On ₹999+</h3>
-                  <p className="card-text small">No delivery charges</p>
-                  <button className="btn btn-warning btn-sm w-50">Order Now</button>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card h-100 border-0 position-relative overflow-hidden">
-                <img 
-                  src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=200&fit=crop&q=80" 
-                  alt="Weekend Special"
-                  className="card-img-top"
-                  style={{ height: '150px', objectFit: 'cover' }}
-                />
-                <div className="card-img-overlay d-flex flex-column justify-content-end text-white" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}>
-                  <h5 className="card-title fw-bold">Weekend Special</h5>
-                  <h3 className="fw-bold text-warning">₹100 OFF</h3>
-                  <p className="card-text small">On orders above ₹1500</p>
-                  <button className="btn btn-warning btn-sm w-50">Grab Deal</button>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </section>
 

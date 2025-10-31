@@ -34,32 +34,55 @@ const ProductManagement = () => {
     originalPrice: '',
     stock: '',
     size: '',
-    image: '',
+    image: '', // Primary image URL
+    images: [], // Additional image URLs
     description: ''
   });
 
   useEffect(() => {
-    console.log('🔍 ProductManagement mounting...');
-    console.log('📦 CONSTANTS_PRODUCTS loaded:', CONSTANTS_PRODUCTS.length, 'products');
+    const initializeData = async () => {
+      console.log('🔍 ProductManagement mounting...');
+      console.log('📦 CONSTANTS_PRODUCTS loaded:', CONSTANTS_PRODUCTS.length, 'products');
+      
+      try {
+        // Load categories
+        const categoriesData = await productService.getAllCategories();
+        setCategories(categoriesData);
+        console.log('📂 Categories loaded:', categoriesData.length);
+        console.log('📂 First category:', categoriesData[0]);
+        
+        // Load products from localStorage (includes both constants and custom additions)
+        await loadAllProducts();
+      } catch (error) {
+        console.error('Error initializing product data:', error);
+        console.error('Error details:', error.message);
+      }
+    };
     
-    // Load categories
-    const categoriesData = productService.getAllCategories();
-    setCategories(categoriesData);
-    console.log('📂 Categories loaded:', categoriesData.length);
-    
-    // Load products from localStorage (includes both constants and custom additions)
-    loadAllProducts();
+    initializeData();
   }, []);
 
-  const loadAllProducts = () => {
+  const loadAllProducts = async () => {
     console.log('🔄 Loading all products...');
+    setLoading(true);
     
-    // Get products from service (which handles localStorage + constants merge)
-    const allProducts = productService.getAllProducts();
-    console.log('📦 Total products loaded:', allProducts.length);
-    
-    setProducts(allProducts);
-    console.log('✅ Products state updated with', allProducts.length, 'products');
+    try {
+      // Get products from service (which handles localStorage + constants merge)
+      const response = await productService.getAllProducts();
+      console.log('📦 Product service response:', response);
+      
+      // Handle both direct array and object response formats
+      const allProducts = Array.isArray(response) ? response : response.products || [];
+      console.log('📦 Total products loaded:', allProducts.length);
+      
+      setProducts(allProducts);
+      console.log('✅ Products state updated with', allProducts.length, 'products');
+    } catch (error) {
+      console.error('Error loading products:', error);
+      setProducts([]); // Fallback to empty array
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -72,12 +95,19 @@ const ProductManagement = () => {
 
   const filterAndSortProducts = () => {
     console.log('🔍 Filtering products...', { 
-      totalProducts: products.length, 
+      totalProducts: Array.isArray(products) ? products.length : 0, 
       searchTerm, 
       filterCategory, 
       filterStock,
       priceRange 
     });
+    
+    // Safety check - ensure products is an array
+    if (!Array.isArray(products)) {
+      console.warn('Products is not an array:', products);
+      setFilteredProducts([]);
+      return;
+    }
     
     let filtered = [...products];
 
@@ -85,14 +115,18 @@ const ProductManagement = () => {
     if (searchTerm) {
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.category_name && product.category_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
     // Category filter
     if (filterCategory !== 'all') {
-      filtered = filtered.filter(product => product.category === filterCategory);
+      filtered = filtered.filter(product => 
+        product.category_name === filterCategory || 
+        product.category === filterCategory
+      );
     }
 
     // Stock filter
@@ -177,16 +211,52 @@ const ProductManagement = () => {
     setShowModal(true);
   };
 
+  // Helper function to get primary image for display
+  const getProductDisplayImage = (product) => {
+    const { primaryImage } = parseProductImages(product);
+    return primaryImage;
+  };
+
+  // Helper function to parse product images from database
+  const parseProductImages = (product) => {
+    let images = [];
+    let primaryImage = '';
+
+    if (product.image_url) {
+      try {
+        // Try to parse as JSON array (multiple images)
+        const parsedImages = JSON.parse(product.image_url);
+        if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+          primaryImage = parsedImages[0];
+          images = parsedImages.slice(1);
+        } else {
+          primaryImage = product.image_url;
+        }
+      } catch {
+        // If not JSON, treat as single image URL
+        primaryImage = product.image_url;
+      }
+    } else if (product.image) {
+      // Fallback to legacy image field
+      primaryImage = product.image;
+    }
+
+    return { primaryImage, images };
+  };
+
   const handleEdit = (product) => {
+    const { primaryImage, images } = parseProductImages(product);
+    
     setEditingProduct(product);
     setFormData({
       name: product.name,
-      category: product.category,
+      category: product.category_id || product.category || '', // Use category_id from database
       price: product.price,
-      originalPrice: product.originalPrice || '',
+      originalPrice: product.originalPrice || product.original_price || '',
       stock: product.stock,
       size: product.size,
-      image: product.image,
+      image: primaryImage,
+      images: images,
       description: product.description || ''
     });
     setShowModal(true);
@@ -198,15 +268,18 @@ const ProductManagement = () => {
   };
 
   const handleView = (product) => {
+    const { primaryImage, images } = parseProductImages(product);
+    
     setEditingProduct(product);
     setFormData({
       name: product.name,
-      category: product.category,
+      category: product.category_id || product.category || '', // Use category_id from database
       price: product.price,
-      originalPrice: product.originalPrice || '',
+      originalPrice: product.originalPrice || product.original_price || '',
       stock: product.stock,
       size: product.size,
-      image: product.image,
+      image: primaryImage,
+      images: images,
       description: product.description || ''
     });
     // For view mode, we'll use the same modal but disable editing
@@ -221,6 +294,28 @@ const ProductManagement = () => {
     }));
   };
 
+  // Helper functions for multiple images
+  const addImageField = () => {
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, '']
+    }));
+  };
+
+  const removeImageField = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateImageField = (index, value) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.map((img, i) => i === index ? value : img)
+    }));
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -230,6 +325,7 @@ const ProductManagement = () => {
       stock: '',
       size: '',
       image: '',
+      images: [],
       description: ''
     });
   };
@@ -239,17 +335,38 @@ const ProductManagement = () => {
     setLoading(true);
 
     try {
+      // Convert form data to API format with multiple images support
+      const allImages = [formData.image, ...formData.images].filter(url => url.trim() !== '');
+      
+      // Find category name from category ID
+      const selectedCategory = categories.find(cat => cat.id.toString() === formData.category.toString());
+      const categoryName = selectedCategory ? selectedCategory.name : formData.category;
+      
+      const apiData = {
+        ...formData,
+        category_name: categoryName, // API expects category_name
+        original_price: formData.originalPrice, // API expects original_price
+        image_url: JSON.stringify(allImages) // Store all images as JSON array
+      };
+      delete apiData.category; // Remove frontend field
+      delete apiData.originalPrice; // Remove frontend field
+      delete apiData.image;
+      delete apiData.images;
+
+      console.log('🔄 Submitting product data:', apiData);
+      console.log('📸 Images being saved:', allImages);
+
       let result;
       if (editingProduct) {
         // Update existing product
-        result = await productService.updateProduct(editingProduct.id, formData);
+        result = await productService.updateProduct(editingProduct.id, apiData);
         setMessage({
           type: 'success',
           text: `Product "${formData.name}" updated successfully!`
         });
       } else {
         // Add new product
-        result = await productService.addProduct(formData);
+        result = await productService.addProduct(apiData);
         setMessage({
           type: 'success',
           text: `Product "${formData.name}" added successfully!`
@@ -257,10 +374,11 @@ const ProductManagement = () => {
       }
 
       // Reload all products from service to get updated data
-      loadAllProducts();
+      await loadAllProducts();
 
       // Trigger custom event for real-time updates on user end
-      const allProducts = productService.getAllProducts();
+      const response = await productService.getAllProducts();
+      const allProducts = Array.isArray(response) ? response : response.products || [];
       window.dispatchEvent(new CustomEvent('productsUpdated', { 
         detail: { products: allProducts } 
       }));
@@ -289,10 +407,11 @@ const ProductManagement = () => {
       await productService.deleteProduct(deletingProduct.id);
       
       // Reload all products from service to get updated data
-      loadAllProducts();
+      await loadAllProducts();
 
       // Trigger custom event for real-time updates on user end
-      const allProducts = productService.getAllProducts();
+      const response = await productService.getAllProducts();
+      const allProducts = Array.isArray(response) ? response : response.products || [];
       window.dispatchEvent(new CustomEvent('productsUpdated', { 
         detail: { products: allProducts } 
       }));
@@ -325,7 +444,7 @@ const ProductManagement = () => {
             <h5 className="mb-0">
               Product Management 
               <Badge bg="success" className="ms-2">
-                {filteredProducts.length} of {products.length} products
+                {filteredProducts.length} of {Array.isArray(products) ? products.length : 0} products
               </Badge>
               <Badge bg="info" className="ms-2">
                 Loaded from Constants: {CONSTANTS_PRODUCTS.length}
@@ -335,14 +454,14 @@ const ProductManagement = () => {
               <Button 
                 variant="outline-success" 
                 size="sm"
-                onClick={() => {
+                onClick={async () => {
                   console.log('🔄 Refreshing products from service...');
-                  loadAllProducts();
+                  await loadAllProducts();
                 }}
                 className="me-2"
               >
                 <i className="fas fa-refresh me-1"></i>
-                Refresh ({products.length})
+                Refresh ({Array.isArray(products) ? products.length : 0})
               </Button>
               <Button variant="primary" onClick={handleAdd}>
                 <i className="fas fa-plus me-2"></i>
@@ -375,8 +494,8 @@ const ProductManagement = () => {
                 onChange={(e) => setFilterCategory(e.target.value)}
               >
                 <option value="all">All Categories</option>
-                {[...new Set(products.map(p => p.category))].map(category => (
-                  <option key={category} value={category}>{category}</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.name}>{category.name}</option>
                 ))}
               </Form.Select>
             </Col>
@@ -458,7 +577,16 @@ const ProductManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {paginatedProducts.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan="7" className="text-center py-4">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                      <div className="mt-2">Loading products...</div>
+                    </td>
+                  </tr>
+                ) : paginatedProducts.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="text-center py-4">
                       <div className="text-muted">
@@ -485,7 +613,7 @@ const ProductManagement = () => {
                     <tr key={product.id}>
                       <td>
                         <img
-                          src={product.image}
+                          src={getProductDisplayImage(product)}
                           alt={product.name}
                           className="rounded"
                           style={{ width: '40px', height: '40px', objectFit: 'cover' }}
@@ -510,7 +638,7 @@ const ProductManagement = () => {
                         <br />
                         <small className="text-muted">{product.size}</small>
                       </td>
-                      <td>{product.category}</td>
+                      <td>{product.category_name || product.category}</td>
                       <td>
                         <span className="fw-bold text-success">₹{product.price}</span>
                         {product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price) && (
@@ -643,9 +771,9 @@ const ProductManagement = () => {
                         required
                       >
                         <option value="">Select Category</option>
-                        {[...new Set(CONSTANTS_PRODUCTS.map(p => p.category))].map(category => (
-                          <option key={category} value={category}>
-                            {category}
+                        {categories.map(category => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
                           </option>
                         ))}
                       </Form.Select>
@@ -726,6 +854,40 @@ const ProductManagement = () => {
                   />
                   <Form.Text className="text-muted">
                     Enter a valid image URL (use Unsplash, Pexels, etc.)
+                  </Form.Text>
+                </Form.Group>
+
+                {/* Additional Images */}
+                <Form.Group className="mb-3">
+                  <Form.Label>Additional Images (Optional)</Form.Label>
+                  {formData.images.map((imageUrl, index) => (
+                    <div key={index} className="d-flex mb-2">
+                      <Form.Control
+                        type="url"
+                        value={imageUrl}
+                        onChange={(e) => updateImageField(index, e.target.value)}
+                        placeholder="https://example.com/additional-image.jpg"
+                        className="me-2"
+                      />
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => removeImageField(index)}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={addImageField}
+                    className="mt-2"
+                  >
+                    + Add Image
+                  </Button>
+                  <Form.Text className="text-muted d-block">
+                    Add multiple product images for better presentation
                   </Form.Text>
                 </Form.Group>
 
@@ -905,7 +1067,7 @@ const ProductManagement = () => {
               <div className="bg-light p-3 rounded">
                 <div className="d-flex align-items-center">
                   <img
-                    src={deletingProduct.image}
+                    src={getProductDisplayImage(deletingProduct)}
                     alt={deletingProduct.name}
                     className="rounded me-3"
                     style={{ width: '60px', height: '60px', objectFit: 'cover' }}
@@ -930,7 +1092,7 @@ const ProductManagement = () => {
                   <div>
                     <h6 className="mb-1">{deletingProduct.name}</h6>
                     <small className="text-muted">
-                      {deletingProduct.category} • {deletingProduct.size}
+                      {deletingProduct.category_name || deletingProduct.category} • {deletingProduct.size}
                     </small>
                     <br />
                     <small className="text-muted">

@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
 from utils.database import db
+from utils.auth_middleware import admin_required
+from utils.input_validator import InputValidator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -46,13 +48,19 @@ def get_category_by_id(category_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @category_bp.route('/', methods=['POST'])
-def create_category():
-    """Create a new category (Admin only)"""
+@admin_required
+def create_category(current_user):
+    """
+    🔒 SECURED: Create a new category (Admin only)
+    """
     try:
         data = request.get_json()
         
         if not data.get('name'):
             return jsonify({"success": False, "error": "Category name is required"}), 400
+        
+        # 🔒 Sanitize input
+        name = InputValidator.sanitize_string(data['name'], max_length=100)
         
         query = """
             INSERT INTO categories (name, image_url, status)
@@ -61,13 +69,15 @@ def create_category():
         """
         
         params = (
-            data['name'],
+            name,
             data.get('image_url', '')
         )
         
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            logger.info(f"✅ Admin {current_user['id']} created category: {name}")
+            
             return jsonify({
                 "success": True,
                 "category": dict(result[0]),
@@ -77,12 +87,15 @@ def create_category():
         return jsonify({"success": False, "error": "Failed to create category"}), 500
         
     except Exception as e:
-        logger.error(f"Error creating category: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"❌ Error creating category: {e}")
+        return jsonify({"success": False, "error": "Failed to create category"}), 500
 
 @category_bp.route('/<int:category_id>', methods=['PUT'])
-def update_category(category_id):
-    """Update a category (Admin only)"""
+@admin_required
+def update_category(current_user, category_id):
+    """
+    🔒 SECURED: Update a category (Admin only)
+    """
     try:
         data = request.get_json()
         
@@ -93,8 +106,10 @@ def update_category(category_id):
         
         for field in allowed_fields:
             if field in data:
+                # 🔒 Sanitize string fields
+                value = InputValidator.sanitize_string(data[field], max_length=200) if field in ['name', 'status'] else data[field]
                 update_fields.append(f"{field} = %s")
-                params.append(data[field])
+                params.append(value)
         
         if not update_fields:
             return jsonify({"success": False, "error": "No valid fields to update"}), 400

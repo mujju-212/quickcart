@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { getImagePlaceholder } from '../../utils/helpers';
 
 const LazyImage = ({ src, alt, className, style, placeholder, ...props }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -28,7 +29,7 @@ const LazyImage = ({ src, alt, className, style, placeholder, ...props }) => {
   };
 
   const handleError = (e) => {
-    e.target.src = placeholder || 'https://via.placeholder.com/400x400/f8f9fa/6c757d?text=Image';
+    e.target.src = placeholder || getImagePlaceholder(400, 400, 'Image');
   };
 
   return (

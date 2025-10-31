@@ -1,1 +1,1 @@
-# Blinkit Backend Package
+# QuickCart Backend Package

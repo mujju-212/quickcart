@@ -17,6 +17,9 @@ from backend.routes.category_routes import category_bp
 from backend.routes.user_routes import user_bp
 from backend.routes.cart_routes import cart_bp
 from backend.routes.order_routes import order_bp
+from backend.routes.wishlist_routes import wishlist_bp
+from backend.routes.banner_routes import banner_bp
+from backend.routes.offer_routes import offer_bp
 from backend.utils.database import db
 
 # Configure logging
@@ -37,7 +40,7 @@ def create_app():
     
     # Enable CORS for all routes with more permissive settings
     CORS(app, 
-         origins=["http://localhost:3000", "http://localhost:3001"],
+         origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3003"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],
          supports_credentials=True)
@@ -56,6 +59,9 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(cart_bp, url_prefix='/api/cart')
     app.register_blueprint(order_bp, url_prefix='/api/orders')
+    app.register_blueprint(wishlist_bp, url_prefix='/api/wishlist')
+    app.register_blueprint(banner_bp, url_prefix='/api/banners')
+    app.register_blueprint(offer_bp, url_prefix='/api/offers')
     
     return app
 
@@ -65,7 +71,7 @@ app = create_app()
 @app.route('/')
 def hello():
     return jsonify({
-        "message": "Blink Basket Backend API is running!",
+        "message": "QuickCart Backend API is running!",
         "status": "success",
         "version": "2.0.0",
         "endpoints": {
@@ -75,6 +81,7 @@ def hello():
             "users": "/api/users",
             "cart": "/api/cart",
             "orders": "/api/orders",
+            "wishlist": "/api/wishlist",
             "health": "/health"
         }
     })
@@ -87,7 +94,7 @@ def health_check():
     
     return jsonify({
         'success': True,
-        'message': 'Blink Basket Backend API is running',
+        'message': 'QuickCart Backend API is running',
         'services': {
             'database': db_status,
             'sms': sms_services,
@@ -101,7 +108,7 @@ def health_check():
 def api_info():
     """API information endpoint"""
     return jsonify({
-        'message': 'Blink Basket API',
+        'message': 'QuickCart API',
         'version': '2.0.0',
         'status': 'running',
         'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
@@ -116,10 +123,10 @@ def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') == 'development'
     
-    print(f"🚀 Starting Blink Basket Backend API on port {port}")
+    print(f"🚀 Starting QuickCart Backend API on port {port}")
     print(f"🐛 Debug mode: {debug}")
     print(f"🌐 CORS enabled for: http://localhost:3000")
     print(f"🗄️  Database URL: {Config.DATABASE_URL}")

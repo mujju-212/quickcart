@@ -1,8 +1,8 @@
-# 🛒 Blink Basket
+# 🛒 QuickCart
 
 > **A modern grocery delivery application built with React**
 
-Blink Basket is a feature-rich e-commerce application for grocery delivery built with React and Bootstrap. It provides a seamless shopping experience with product browsing, cart management, user authentication, order tracking, and a comprehensive admin panel.
+QuickCart is a feature-rich e-commerce application for grocery delivery built with React and Bootstrap. It provides a seamless shopping experience with product browsing, cart management, user authentication, order tracking, and a comprehensive admin panel.
 
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)
@@ -40,7 +40,7 @@ Blink Basket is a feature-rich e-commerce application for grocery delivery built
 ## 📁 Project Structure
 
 ```
-blink-basket/
+quickcart/
 ├── public/
 │   ├── index.html
 │   ├── manifest.json
@@ -71,8 +71,8 @@ blink-basket/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/mujju-212/blink-basket.git
-   cd blink-basket
+   git clone https://github.com/mujju-212/quickcart.git
+   cd quickcart
    ```
 
 2. **Install dependencies**
@@ -172,7 +172,7 @@ REACT_APP_ENV=development
    ```
 2. Add to package.json:
    ```json
-   "homepage": "https://mujju-212.github.io/blink-basket"
+   "homepage": "https://mujju-212.github.io/quickcart"
    ```
 3. Deploy:
    ```bash
@@ -215,7 +215,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Mujju-212**
 - GitHub: [@mujju-212](https://github.com/mujju-212)
-- Repository: [blink-basket](https://github.com/mujju-212/blink-basket)
+- Repository: [quickcart](https://github.com/mujju-212/quickcart)
 
 ## 🙏 Acknowledgments
 

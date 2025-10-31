@@ -1,7 +1,7 @@
 {
-  "name": "blinkit-backend",
+  "name": "quickcart-backend",
   "version": "1.0.0",
-  "description": "Backend server for Blinkit clone SMS authentication",
+  "description": "Backend server for QuickCart SMS authentication and API services",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

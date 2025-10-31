@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Table } from 'react-bootstrap';
 import orderService from '../../services/orderService';
 import productService from '../../services/productService';
+import { getProductImage } from '../../utils/helpers';
 
 const Analytics = () => {
   const [stats, setStats] = useState({
@@ -38,10 +39,10 @@ const Analytics = () => {
 
       // Recent activity (mock data)
       const activity = [
-        { type: 'order', message: 'New order #BLK001 placed', time: '2 minutes ago' },
+        { type: 'order', message: 'New order #QC001 placed', time: '2 minutes ago' },
         { type: 'product', message: 'Product "Fresh Apples" updated', time: '15 minutes ago' },
         { type: 'user', message: 'New user registered', time: '1 hour ago' },
-        { type: 'order', message: 'Order #BLK002 delivered', time: '2 hours ago' }
+        { type: 'order', message: 'Order #QC002 delivered', time: '2 hours ago' }
       ];
 
       setStats({
@@ -145,7 +146,7 @@ const Analytics = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <img
-                            src={product.image}
+                            src={getProductImage(product)}
                             alt={product.name}
                             className="rounded me-2"
                             style={{ width: '40px', height: '40px', objectFit: 'cover' }}

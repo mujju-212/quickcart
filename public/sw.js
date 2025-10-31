@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blinkit-cache-v1.1.0';
+const CACHE_NAME = 'quickcart-cache-v1.1.0';
 const urlsToCache = [
   '/',
   '/static/css/main.css',
@@ -92,7 +92,7 @@ self.addEventListener('sync', (event) => {
 // Push notifications
 self.addEventListener('push', (event) => {
   const options = {
-    body: event.data ? event.data.text() : 'New notification from Blinkit',
+    body: event.data ? event.data.text() : 'New notification from QuickCart',
     icon: '/logo192.png',
     badge: '/logo192.png',
     vibrate: [100, 50, 100],
@@ -115,7 +115,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification('Blinkit Notification', options)
+    self.registration.showNotification('QuickCart Notification', options)
   );
 });
 

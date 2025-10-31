@@ -3,11 +3,12 @@ import { Card, Form, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 
 const Profile = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, updateUser } = useAuth();
   const [formData, setFormData] = useState({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
-    phone: currentUser?.phone || ''
+    phone: currentUser?.phone || '',
+    dob: currentUser?.dob || ''
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -23,12 +24,34 @@ const Profile = () => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Update user data in localStorage
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const userIndex = users.findIndex(u => u.phone === currentUser.phone);
+      
+      if (userIndex !== -1) {
+        users[userIndex] = {
+          ...users[userIndex],
+          ...formData
+        };
+        localStorage.setItem('users', JSON.stringify(users));
+        
+        // Update current user in localStorage
+        localStorage.setItem('currentUser', JSON.stringify(users[userIndex]));
+        
+        // Update context if updateUser function exists
+        if (updateUser) {
+          updateUser(users[userIndex]);
+        }
+      }
+      
       setLoading(false);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    }, 1000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,15 +89,33 @@ const Profile = () => {
             />
           </Form.Group>
 
-          <Form.Group className="mb-4">
+          <Form.Group className="mb-3">
             <Form.Label>Phone</Form.Label>
             <Form.Control
               type="tel"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              required
+              disabled
+              title="Phone number cannot be changed"
             />
+            <Form.Text className="text-muted">
+              Phone number cannot be changed
+            </Form.Text>
+          </Form.Group>
+
+          <Form.Group className="mb-4">
+            <Form.Label>Date of Birth</Form.Label>
+            <Form.Control
+              type="date"
+              name="dob"
+              value={formData.dob}
+              onChange={handleChange}
+              max={new Date().toISOString().split('T')[0]}
+            />
+            <Form.Text className="text-muted">
+              Your date of birth for special birthday offers
+            </Form.Text>
           </Form.Group>
 
           <Button 

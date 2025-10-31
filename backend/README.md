@@ -1,6 +1,6 @@
-# Blinkit Backend
+# QuickCart Backend
 
-A modular Flask-based backend for the Blinkit clone application.
+A modular Flask-based backend for the QuickCart application.
 
 ## 📁 Project Structure
 

@@ -31,14 +31,24 @@ const OffersManagement = () => {
     loadCategories();
   }, []);
 
-  const loadOffers = () => {
-    const allOffers = offersService.getAllOffers();
-    setOffers(allOffers);
+  const loadOffers = async () => {
+    try {
+      const allOffers = await offersService.getAllOffers();
+      setOffers(Array.isArray(allOffers) ? allOffers : []);
+    } catch (error) {
+      console.error('Error loading offers:', error);
+      setOffers([]);
+    }
   };
 
-  const loadCategories = () => {
-    const allCategories = categoryService.getAllCategories();
-    setCategories(allCategories);
+  const loadCategories = async () => {
+    try {
+      const allCategories = await categoryService.getAllCategories();
+      setCategories(Array.isArray(allCategories) ? allCategories : []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      setCategories([]);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -119,21 +129,34 @@ const OffersManagement = () => {
 
   const handleEditOffer = (offer) => {
     setEditingOffer(offer);
+    
+    // Convert applicable_categories string to array
+    let categoriesArray = ['all'];
+    if (offer.applicable_categories && typeof offer.applicable_categories === 'string') {
+      if (offer.applicable_categories.toLowerCase() === 'all') {
+        categoriesArray = ['all'];
+      } else {
+        categoriesArray = offer.applicable_categories.split(',').map(c => c.trim());
+      }
+    } else if (Array.isArray(offer.applicable_categories)) {
+      categoriesArray = offer.applicable_categories;
+    }
+    
     setFormData({
-      title: offer.title,
-      description: offer.description,
-      code: offer.code,
-      discountType: offer.discountType,
-      discountValue: offer.discountValue,
-      minOrderValue: offer.minOrderValue,
-      maxDiscountAmount: offer.maxDiscountAmount,
-      image: offer.image,
-      status: offer.status,
-      startDate: offer.startDate,
-      endDate: offer.endDate,
-      usageLimit: offer.usageLimit,
-      applicableCategories: offer.applicableCategories,
-      type: offer.type
+      title: offer.title || '',
+      description: offer.description || '',
+      code: offer.code || '',
+      discountType: offer.discount_type || 'percentage',
+      discountValue: offer.discount_value || 0,
+      minOrderValue: offer.min_order_value || 0,
+      maxDiscountAmount: offer.max_discount_amount || 0,
+      image: offer.image_url || '',
+      status: offer.status || 'active',
+      startDate: offer.start_date || new Date().toISOString().split('T')[0],
+      endDate: offer.end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      usageLimit: offer.usage_limit || 100,
+      applicableCategories: categoriesArray,
+      type: offer.offer_type || 'general'
     });
     setShowEditModal(true);
   };
@@ -238,19 +261,36 @@ const OffersManagement = () => {
                       <tr key={offer.id}>
                         <td>
                           <div className="d-flex align-items-center">
-                            {offer.image && (
+                            {offer.image_url ? (
                               <img 
-                                src={offer.image} 
+                                src={offer.image_url} 
                                 alt={offer.title}
                                 style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '8px' }}
                                 className="me-3"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect width="40" height="40" fill="%23ffe01b"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="%23000"%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E';
+                                }}
                               />
+                            ) : (
+                              <div 
+                                className="me-3 d-flex align-items-center justify-content-center"
+                                style={{ 
+                                  width: '40px', 
+                                  height: '40px', 
+                                  backgroundColor: '#ffe01b', 
+                                  borderRadius: '8px',
+                                  fontSize: '20px'
+                                }}
+                              >
+                                🎁
+                              </div>
                             )}
                             <div>
                               <div className="fw-bold">{offer.title}</div>
                               <div className="text-muted small">{offer.description}</div>
-                              <span className={`badge ${getOfferTypeColor(offer.type)} mt-1`}>
-                                {offer.type.replace('_', ' ')}
+                              <span className={`badge ${getOfferTypeColor(offer.type || 'general')} mt-1`}>
+                                {(offer.type || 'general').replace('_', ' ')}
                               </span>
                             </div>
                           </div>
@@ -260,23 +300,23 @@ const OffersManagement = () => {
                         </td>
                         <td>
                           <div>
-                            <span className={`badge ${getDiscountTypeColor(offer.discountType)}`}>
-                              {offer.discountType === 'percentage' 
-                                ? `${offer.discountValue}% OFF`
-                                : offer.discountType === 'fixed'
-                                ? `₹${offer.discountValue} OFF`
+                            <span className={`badge ${getDiscountTypeColor(offer.discountType || 'percentage')}`}>
+                              {(offer.discountType || 'percentage') === 'percentage' 
+                                ? `${offer.discountValue || 0}% OFF`
+                                : (offer.discountType || 'percentage') === 'fixed'
+                                ? `₹${offer.discountValue || 0} OFF`
                                 : 'FREE DELIVERY'
                               }
                             </span>
                             <div className="small text-muted">
-                              Min: ₹{offer.minOrderValue} | Max: ₹{offer.maxDiscountAmount}
+                              Min: ₹{offer.minOrderValue || 0} | Max: ₹{offer.maxDiscountAmount || 0}
                             </div>
                           </div>
                         </td>
                         <td>
                           <div>
                             <div className="small">
-                              {offer.usedCount} / {offer.usageLimit}
+                              {offer.usedCount || 0} / {offer.usageLimit || 0}
                             </div>
                             <div className="progress" style={{ height: '5px' }}>
                               <div 
@@ -581,18 +621,18 @@ const OffersManagement = () => {
                           <input
                             type="checkbox"
                             className="form-check-input"
-                            checked={formData.applicableCategories.includes('all')}
+                            checked={(formData.applicableCategories || []).includes('all')}
                             onChange={handleAllCategoriesChange}
                           />
                           <label className="form-check-label">All Categories</label>
                         </div>
-                        {!formData.applicableCategories.includes('all') && categories.map(category => (
+                        {!(formData.applicableCategories || []).includes('all') && categories.map(category => (
                           <div key={category.id} className="form-check">
                             <input
                               type="checkbox"
                               className="form-check-input"
                               value={category.id}
-                              checked={formData.applicableCategories.includes(category.id)}
+                              checked={(formData.applicableCategories || []).includes(category.id)}
                               onChange={handleCategoriesChange}
                             />
                             <label className="form-check-label">{category.name}</label>
@@ -876,18 +916,18 @@ const OffersManagement = () => {
                           <input
                             type="checkbox"
                             className="form-check-input"
-                            checked={formData.applicableCategories.includes('all')}
+                            checked={(formData.applicableCategories || []).includes('all')}
                             onChange={handleAllCategoriesChange}
                           />
                           <label className="form-check-label">All Categories</label>
                         </div>
-                        {!formData.applicableCategories.includes('all') && categories.map(category => (
+                        {!(formData.applicableCategories || []).includes('all') && categories.map(category => (
                           <div key={category.id} className="form-check">
                             <input
                               type="checkbox"
                               className="form-check-input"
                               value={category.id}
-                              checked={formData.applicableCategories.includes(category.id)}
+                              checked={(formData.applicableCategories || []).includes(category.id)}
                               onChange={handleCategoriesChange}
                             />
                             <label className="form-check-label">{category.name}</label>

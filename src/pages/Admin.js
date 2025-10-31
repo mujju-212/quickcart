@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Container, Button, Card, Form, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import authService from '../services/authService';
 import { FaTachometerAlt } from 'react-icons/fa';
 
 // Import admin components
@@ -28,9 +29,14 @@ const Admin = () => {
     setLoading(true);
     
     try {
-      const success = adminLogin(credentials.username, credentials.password);
-      if (!success) {
-        setError('Invalid admin credentials. Use username: admin, password: admin123');
+      // 🔒 SECURITY: Call backend admin login to get JWT token
+      const result = await authService.adminLogin(credentials.username, credentials.password);
+      
+      if (result.success && result.token && result.user) {
+        // Store admin data with JWT token in AuthContext
+        adminLogin(credentials.username, credentials.password, result.token);
+      } else {
+        setError(result.message || 'Invalid admin credentials. Use username: admin, password: admin123');
       }
     } catch (err) {
       setError('Login failed. Please try again.');

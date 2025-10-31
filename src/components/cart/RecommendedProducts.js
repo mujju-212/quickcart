@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button } from 'react-bootstrap';
 import { useCart } from '../../context/CartContext';
 import productService from '../../services/productService';
+import { getProductImage } from '../../utils/helpers';
 
 const RecommendedProducts = () => {
   const { cart, addToCart } = useCart();
@@ -49,7 +50,7 @@ const RecommendedProducts = () => {
             <Col key={product.id} xs={6} md={3} className="mb-3">
               <div className="text-center">
                 <img
-                  src={product.image_url || product.image}
+                  src={getProductImage(product)}
                   alt={product.name}
                   className="w-100 rounded mb-2"
                   style={{ height: '100px', objectFit: 'cover' }}

@@ -1,6 +1,6 @@
 # Database Setup Guide
 
-This directory contains the database schema and setup scripts for **Blink Basket**.
+This directory contains the database schema and setup scripts for **QuickCart**.
 
 ## Prerequisites
 

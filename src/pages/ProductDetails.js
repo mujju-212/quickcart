@@ -6,11 +6,12 @@ import { useWishlist } from '../context/WishlistContext';
 import ProductGrid from '../components/product/ProductGrid';
 import ProductReviews from '../components/product/ProductReviews';
 import productService from '../services/productService';
+import { getImagePlaceholder, getProductImages } from '../utils/helpers';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart, cart } = useCart();
+  const { addToCart, cart, updateQuantity } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -19,13 +20,8 @@ const ProductDetails = () => {
   const [activeTab, setActiveTab] = useState('description');
   const [selectedImage, setSelectedImage] = useState(0);
 
-  // Sample additional images for the product
-  const productImages = [
-    product?.image_url || product?.image,
-    'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=400&h=400&fit=crop'
-  ].filter(Boolean);
+  // Get actual product images from database
+  const productImages = product ? getProductImages(product) : [];
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -51,6 +47,17 @@ const ProductDetails = () => {
 
     loadProduct();
   }, [id, navigate]);
+
+  // Calculate cart item and status
+  const cartItem = cart.find(item => item.id === product?.id);
+  const isInCart = !!cartItem;
+
+  // Sync selectedQuantity with cart when product is already in cart
+  useEffect(() => {
+    if (cartItem) {
+      setSelectedQuantity(cartItem.quantity);
+    }
+  }, [cartItem]);
 
   if (loading) {
     return (
@@ -79,18 +86,21 @@ const ProductDetails = () => {
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
-  const cartItem = cart.find(item => item.id === product.id);
-  const isInCart = !!cartItem;
-
   const handleAddToCart = () => {
-    addToCart(product, selectedQuantity);
+    if (isInCart) {
+      // If item already in cart, SET the quantity to selected quantity
+      updateQuantity(product.id, selectedQuantity);
+    } else {
+      // New item, add with selected quantity
+      addToCart(product, selectedQuantity);
+    }
     
     // Show notification
     const notification = document.createElement('div');
     notification.innerHTML = `
-      <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <div style="position: fixed; top: 20px; right: 20px; background: #26a541; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1055; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         <i class="fas fa-check-circle me-2"></i>
-        ${selectedQuantity} x ${product.name} added to cart!
+        ${isInCart ? 'Cart updated!' : `${selectedQuantity} x ${product.name} added to cart!`}
       </div>
     `;
     document.body.appendChild(notification);
@@ -107,7 +117,7 @@ const ProductDetails = () => {
     // Show notification
     const notification = document.createElement('div');
     notification.innerHTML = `
-      <div style="position: fixed; top: 20px; right: 20px; background: ${added ? '#dc3545' : '#6c757d'}; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <div style="position: fixed; top: 20px; right: 20px; background: ${added ? '#dc3545' : '#6c757d'}; color: white; padding: 16px 24px; border-radius: 8px; z-index: 1055; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         <i class="fas fa-heart me-2"></i>
         ${added ? 'Added to wishlist!' : 'Removed from wishlist!'}
       </div>
@@ -152,12 +162,12 @@ const ProductDetails = () => {
             {/* Main Image */}
             <div className="main-image mb-3 position-relative">
               <img 
-                src={productImages[selectedImage] || product.image_url || product.image} 
+                src={productImages[selectedImage] || getImagePlaceholder(400, 400, product.name.substring(0, 8))} 
                 alt={product.name}
                 className="w-100 rounded shadow"
                 style={{ height: '400px', objectFit: 'cover', cursor: 'zoom-in' }}
                 onError={(e) => {
-                  e.target.src = `https://via.placeholder.com/400x400/f8f9fa/6c757d?text=${product.name.substring(0, 8)}`;
+                  e.target.src = getImagePlaceholder(400, 400, product.name.substring(0, 8));
                 }}
               />
               
@@ -563,7 +573,7 @@ const ProductDetails = () => {
                           </p>
                           <p className="mb-1">
                             <i className="fas fa-envelope text-primary me-2"></i>
-                            support@blinkit.com
+                            support@quickcart.com
                           </p>
                           <p className="mb-0">
                             <i className="fas fa-clock text-primary me-2"></i>

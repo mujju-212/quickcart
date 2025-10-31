@@ -1,14 +1,19 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class CategoryService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    // Development mode flag - set to true to skip API calls entirely
+    this.isDevelopmentMode = process.env.NODE_ENV === 'development' && 
+                             process.env.REACT_APP_USE_MOCK_DATA !== 'false';
+    this.backendAvailable = false; // Track if backend is available
+    
     // Clear any old localStorage data to ensure we use API
     this.clearOldData();
   }
 
   clearOldData() {
-    // Remove old localStorage category data to force API usage
+    // Remove old localStorage category data to ensure we use proper placeholders
     const keysToRemove = ['categories'];
     keysToRemove.forEach(key => {
       if (localStorage.getItem(key)) {
@@ -16,6 +21,9 @@ class CategoryService {
         console.log(`🗑️ Cleared old ${key} from localStorage`);
       }
     });
+    
+    // Initialize with proper placeholder images
+    this.initializeData();
   }
 
   async makeRequest(endpoint, options = {}) {
@@ -47,63 +55,73 @@ class CategoryService {
   }
 
   initializeData() {
-    // Initialize with default categories that match the constants
+    // Import helper for placeholder images
+    const { getColoredPlaceholder } = require('../utils/helpers');
+    
+    // Initialize with default categories using proper placeholders
     const defaultCategories = [
       {
         id: '1',
         name: 'Fruits & Vegetables',
-        image: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Fruits & Vegetables', '#4CAF50'),
         status: 'active',
         productsCount: 20
       },
       {
         id: '2',
         name: 'Dairy & Breakfast',
-        image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Dairy & Breakfast', '#FF9800'),
         status: 'active',
         productsCount: 15
       },
       {
         id: '3',
         name: 'Beverages',
-        image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Beverages', '#2196F3'),
         status: 'active',
         productsCount: 15
       },
       {
         id: '4',
         name: 'Snacks & Munchies',
-        image: 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Snacks & Munchies', '#E91E63'),
         status: 'active',
         productsCount: 15
       },
       {
         id: '5',
         name: 'Bakery & Biscuits',
-        image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Bakery & Biscuits', '#795548'),
         status: 'active',
         productsCount: 10
       },
       {
         id: '6',
         name: 'Personal Care',
-        image: 'https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Personal Care', '#9C27B0'),
         status: 'active',
         productsCount: 10
       },
       {
         id: '7',
         name: 'Home Care',
-        image: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Home Care', '#607D8B'),
         status: 'active',
         productsCount: 10
       },
       {
         id: '8',
         name: 'Baby Care',
-        image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=200&h=200&fit=crop&q=80',
+        image: getColoredPlaceholder('Baby Care', '#FFEB3B'),
         status: 'active',
         productsCount: 5
+      },
+      {
+        id: '9',
+        name: 'Instant & Frozen Food',
+        image: getColoredPlaceholder('Instant & Frozen Food', '#00BCD4'),
+        status: 'active',
+        productsCount: 8
       }
     ];
     localStorage.setItem('categories', JSON.stringify(defaultCategories));
@@ -121,12 +139,28 @@ class CategoryService {
   }
 
   async getAllCategories() {
+    // Always try API first, regardless of development mode
     try {
       const response = await this.makeRequest('/categories');
+      this.backendAvailable = true;
+      console.log('🌐 Successfully loaded categories from API:', response.categories?.length || 0, 'categories');
       return response.categories || [];
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      return [];
+      this.backendAvailable = false;
+      console.log('⚠️ API call failed, falling back to localStorage:', error.message);
+      
+      // Fallback to localStorage data
+      const storedCategories = localStorage.getItem('categories');
+      if (storedCategories && storedCategories !== 'undefined') {
+        console.log('📦 Using localStorage categories');
+        return JSON.parse(storedCategories);
+      }
+      
+      // If no localStorage data, initialize with defaults
+      console.log('🔧 Initializing default categories');
+      this.initializeData();
+      const defaultCategories = localStorage.getItem('categories');
+      return defaultCategories ? JSON.parse(defaultCategories) : [];
     }
   }
 
@@ -142,104 +176,86 @@ class CategoryService {
 
   async getActiveCategories() {
     try {
-      const response = await this.makeRequest('/categories?status=active');
+      console.log('🌐 Calling categories API...');
+      const response = await this.makeRequest('/categories');
+      console.log('✅ Categories API response:', response);
       return response; // Return full response object
     } catch (error) {
-      console.error('Error fetching active categories:', error);
+      console.error('❌ Error fetching active categories from API:', error);
+      console.error('❌ Falling back to empty array - no localStorage fallback');
+      // Don't fall back to localStorage or initialize defaults
+      // If API fails, return empty result
       return { success: false, categories: [], error: error.message };
     }
   }
 
   async createCategory(categoryData) {
     try {
+      console.log('🆕 Creating category via API:', categoryData);
       const response = await this.makeRequest('/categories', {
         method: 'POST',
         body: JSON.stringify(categoryData)
       });
+      
+      this.backendAvailable = true;
+      console.log('✅ Category created successfully:', response);
       
       // Trigger custom event to notify other components
       this.triggerCategoriesUpdate();
       
       return response.category;
     } catch (error) {
-      console.error('Error creating category:', error);
+      console.error('❌ Failed to create category via API:', error);
+      this.backendAvailable = false;
       throw error;
     }
   }
 
-  updateCategory(categoryId, updateData) {
-    const categories = this.getAllCategories();
-    const categoryIndex = categories.findIndex(category => category.id === categoryId);
-    
-    if (categoryIndex !== -1) {
-      const oldCategory = categories[categoryIndex];
-      const newCategory = {
-        ...oldCategory,
-        ...updateData,
-        updatedAt: new Date().toISOString()
-      };
-      
-      console.log('🔄 Updating category:', {
-        oldName: oldCategory.name,
-        newName: updateData.name,
-        hasNameChange: updateData.name && oldCategory.name !== updateData.name
+  async updateCategory(categoryId, updateData) {
+    try {
+      console.log('🔄 Updating category via API:', categoryId, updateData);
+      const response = await this.makeRequest(`/categories/${categoryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
       });
       
-      // If the category name is being changed, update all products that reference this category
-      if (updateData.name && oldCategory.name !== updateData.name) {
-        console.log('📝 Category name changed, updating products...');
-        this.updateProductsCategory(oldCategory.name, updateData.name);
-      }
-      
-      categories[categoryIndex] = newCategory;
-      localStorage.setItem('categories', JSON.stringify(categories));
+      this.backendAvailable = true;
+      console.log('✅ Category updated successfully:', response);
       
       // Trigger custom event to notify other components
       this.triggerCategoriesUpdate();
       
-      return categories[categoryIndex];
+      return response.category;
+    } catch (error) {
+      console.error('❌ Failed to update category via API:', error);
+      this.backendAvailable = false;
+      throw error;
     }
-    
-    return null;
   }
 
-  deleteCategory(categoryId) {
-    console.log('🗑️ deleteCategory called with ID:', categoryId, 'Type:', typeof categoryId);
-    const categories = this.getAllCategories();
-    console.log('Current categories before delete:', categories);
-    
-    // Convert both to string for consistent comparison
-    const idToDelete = String(categoryId);
-    console.log('ID to delete (as string):', idToDelete);
-    
-    const initialLength = categories.length;
-    
-    const filteredCategories = categories.filter(category => {
-      const categoryIdStr = String(category.id);
-      const isMatch = categoryIdStr === idToDelete;
-      console.log(`Comparing category ID: "${categoryIdStr}" with delete ID: "${idToDelete}" - Match: ${isMatch}`);
-      return !isMatch; // Keep categories that DON'T match
-    });
-    
-    console.log('Filtered categories after delete:', filteredCategories);
-    console.log(`Categories count: ${initialLength} -> ${filteredCategories.length}`);
-    
-    if (filteredCategories.length < initialLength) {
-      localStorage.setItem('categories', JSON.stringify(filteredCategories));
-      console.log('✅ Category successfully deleted');
+  async deleteCategory(categoryId) {
+    try {
+      console.log('🗑️ Deleting category via API:', categoryId);
+      const response = await this.makeRequest(`/categories/${categoryId}`, {
+        method: 'DELETE'
+      });
+      
+      this.backendAvailable = true;
+      console.log('✅ Category deleted successfully:', response);
       
       // Trigger custom event to notify other components
       this.triggerCategoriesUpdate();
       
-      return { success: true, message: 'Category deleted successfully' };
-    } else {
-      console.log('❌ No category was deleted - ID not found');
-      return { success: false, error: 'Category not found' };
+      return { success: true, message: response.message };
+    } catch (error) {
+      console.error('❌ Failed to delete category via API:', error);
+      this.backendAvailable = false;
+      throw error;
     }
   }
 
-  updateProductCount(categoryId, count) {
-    const categories = this.getAllCategories();
+  async updateProductCount(categoryId, count) {
+    const categories = await this.getAllCategories();
     const categoryIndex = categories.findIndex(category => category.id === categoryId);
     
     if (categoryIndex !== -1) {
@@ -295,8 +311,8 @@ class CategoryService {
     }
   }
 
-  getCategoryStats() {
-    const categories = this.getAllCategories();
+  async getCategoryStats() {
+    const categories = await this.getAllCategories();
     const totalProducts = categories.reduce((sum, category) => sum + (category.productsCount || 0), 0);
     
     return {

@@ -122,7 +122,7 @@ main {
   padding: 16px 24px;
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  z-index: 1002;
+  z-index: 1055;
   animation: slideInRight 0.3s ease-out;
 }
 
@@ -578,7 +578,7 @@ a:hover {
   position: fixed !important;
   top: 20px !important;
   right: 20px !important;
-  z-index: 1050 !important;
+  z-index: 1055 !important;
   min-width: 300px !important;
   border-radius: 8px !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
@@ -846,4 +846,16 @@ a:hover {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Image placeholder styles */
+img[src^="data:image/svg+xml"] {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+/* Ensure placeholder images maintain proper aspect ratio */
+.card-img-top[src^="data:image/svg+xml"],
+.w-100[src^="data:image/svg+xml"] {
+  object-fit: contain;
 }

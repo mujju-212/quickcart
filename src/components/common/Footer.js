@@ -38,7 +38,7 @@ const Footer = () => {
         <hr className="my-4" />
         <Row>
           <Col className="text-center">
-            <p className="mb-0">&copy; 2024 Blinkit Clone. All rights reserved.</p>
+            <p className="mb-0">&copy; 2024 QuickCart. All rights reserved.</p>
           </Col>
         </Row>
       </Container>

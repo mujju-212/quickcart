@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Alert, Badge } from 'react-bootstrap';
 import categoryService from '../../services/categoryService';
 import { PRODUCTS } from '../../utils/constants';
+import { getColoredPlaceholder } from '../../utils/helpers';
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -18,35 +19,51 @@ const CategoryManagement = () => {
     loadCategories();
   }, []);
 
-  const loadCategories = () => {
-    // Ensure products are initialized in localStorage
-    const storedProducts = localStorage.getItem('products');
-    if (!storedProducts) {
-      localStorage.setItem('products', JSON.stringify(PRODUCTS));
-      console.log('📦 Initialized products in localStorage');
+  const loadCategories = async () => {
+    setLoading(true);
+    try {
+      // Clear any cached category data to ensure fresh API data
+      localStorage.removeItem('categories');
+      console.log('🔄 Admin: Cleared category cache, loading fresh data...');
+      
+      // Ensure products are initialized in localStorage
+      const storedProducts = localStorage.getItem('products');
+      if (!storedProducts) {
+        localStorage.setItem('products', JSON.stringify(PRODUCTS));
+        console.log('📦 Initialized products in localStorage');
+      }
+      
+      // Get all categories from service (includes both constants and newly added)
+      const categoriesData = await categoryService.getAllCategories();
+      const productsData = JSON.parse(localStorage.getItem('products')) || PRODUCTS;
+      
+      console.log('🔍 ADMIN LoadCategories Debug:');
+      console.log('Categories from service:', categoriesData);
+      console.log('Categories count:', categoriesData?.length);
+      console.log('Products data:', productsData.length, 'products');
+      
+      // Count products per category
+      const categoriesWithCount = categoriesData.map(category => {
+        const productCount = productsData.filter(product => product.category === category.name).length;
+        console.log(`Category "${category.name}" has ${productCount} products`);
+        return {
+          ...category,
+          productCount
+        };
+      });
+      
+      console.log('Final categories with count:', categoriesWithCount);
+      setCategories(categoriesWithCount);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      setAlert({
+        show: true,
+        message: 'Error loading categories: ' + error.message,
+        type: 'danger'
+      });
+    } finally {
+      setLoading(false);
     }
-    
-    // Get all categories from service (includes both constants and newly added)
-    const categoriesData = categoryService.getAllCategories();
-    const productsData = JSON.parse(localStorage.getItem('products')) || PRODUCTS;
-    
-    console.log('🔍 ADMIN LoadCategories Debug:');
-    console.log('Categories from service:', categoriesData);
-    console.log('Products data:', productsData.length, 'products');
-    console.log('localStorage categories:', localStorage.getItem('categories'));
-    
-    // Count products per category
-    const categoriesWithCount = categoriesData.map(category => {
-      const productCount = productsData.filter(product => product.category === category.name).length;
-      console.log(`Category "${category.name}" has ${productCount} products`);
-      return {
-        ...category,
-        productCount
-      };
-    });
-    
-    console.log('Final categories with count:', categoriesWithCount);
-    setCategories(categoriesWithCount);
   };
 
   const showAlert = (message, type = 'success') => {
@@ -62,11 +79,11 @@ const CategoryManagement = () => {
 
   const handleEdit = (category) => {
     setEditingCategory(category);
-    setFormData({ name: category.name, image: category.image });
+    setFormData({ name: category.name, image: category.image_url || category.image || '' });
     setShowModal(true);
   };
 
-  const handleDelete = (categoryId) => {
+  const handleDelete = async (categoryId) => {
     console.log('🗑️ Delete clicked for:', categoryId, typeof categoryId);
     
     const categoryToDelete = categories.find(cat => String(cat.id) === String(categoryId));
@@ -79,6 +96,7 @@ const CategoryManagement = () => {
     
     if (window.confirm(confirmMessage)) {
       console.log('✅ Delete confirmed');
+      setLoading(true);
       
       try {
         // Ensure ID is string for consistent comparison
@@ -86,12 +104,12 @@ const CategoryManagement = () => {
         console.log('ID to delete (converted to string):', idToDelete);
         
         console.log('Calling categoryService.deleteCategory with ID:', idToDelete);
-        const result = categoryService.deleteCategory(idToDelete);
+        const result = await categoryService.deleteCategory(idToDelete);
         console.log('Delete result:', result);
         
         if (result && result.success) {
           console.log('✅ Delete successful, reloading categories');
-          loadCategories();
+          await loadCategories();
           showAlert('Category deleted successfully!');
         } else {
           console.error('❌ Delete failed:', result);
@@ -100,6 +118,8 @@ const CategoryManagement = () => {
       } catch (error) {
         console.error('Delete error:', error);
         showAlert('Error deleting category', 'danger');
+      } finally {
+        setLoading(false);
       }
     } else {
       console.log('❌ Delete cancelled');
@@ -111,14 +131,22 @@ const CategoryManagement = () => {
     setLoading(true);
 
     try {
+      // Prepare form data with correct field name for API
+      const { getColoredPlaceholder } = require('../../utils/helpers');
+      const submissionData = {
+        name: formData.name,
+        // Send as image_url (API expects this field name)
+        image_url: formData.image || getColoredPlaceholder(formData.name, '#2196F3')
+      };
+
       if (editingCategory) {
-        console.log('Updating category:', editingCategory.id, 'with data:', formData);
-        const result = categoryService.updateCategory(editingCategory.id, formData);
+        console.log('Updating category:', editingCategory.id, 'with data:', submissionData);
+        const result = await categoryService.updateCategory(editingCategory.id, submissionData);
         console.log('Update result:', result);
         showAlert('Category updated successfully!');
       } else {
-        console.log('Creating new category with data:', formData);
-        const result = categoryService.createCategory(formData);
+        console.log('Creating new category with data:', submissionData);
+        const result = await categoryService.createCategory(submissionData);
         console.log('Create result:', result);
         showAlert('Category added successfully!');
       }
@@ -126,8 +154,8 @@ const CategoryManagement = () => {
       setShowModal(false);
       
       // Wait a bit for the localStorage updates to complete, then reload
-      setTimeout(() => {
-        loadCategories();
+      setTimeout(async () => {
+        await loadCategories();
       }, 100);
     } catch (error) {
       console.error('Save error:', error);
@@ -172,14 +200,34 @@ const CategoryManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {categories.map((category) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-4">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <div className="mt-2">Loading categories...</div>
+                  </td>
+                </tr>
+              ) : categories.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-4 text-muted">
+                    No categories found. Add your first category to get started.
+                  </td>
+                </tr>
+              ) : (
+                categories.map((category) => (
                 <tr key={category.id}>
                   <td>
                     <img
-                      src={category.image}
+                      src={category.image_url || category.image}
                       alt={category.name}
                       className="rounded"
                       style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                      onError={(e) => {
+                        console.log('❌ Admin image failed to load for:', category.name, 'URL:', category.image_url || category.image);
+                        e.target.src = getColoredPlaceholder(50, 50, category.name.charAt(0), '#ffe01b', '#000000');
+                      }}
                     />
                   </td>
                   <td>
@@ -212,17 +260,10 @@ const CategoryManagement = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </Table>
-
-          {categories.length === 0 && (
-            <div className="text-center py-4">
-              <i className="fas fa-folder-open fa-3x text-muted mb-3"></i>
-              <h5>No categories found</h5>
-              <p className="text-muted">Add your first category to get started</p>
-            </div>
-          )}
         </Card.Body>
       </Card>
 
@@ -248,15 +289,17 @@ const CategoryManagement = () => {
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Category Image URL *</Form.Label>
+              <Form.Label>Category Image URL (Optional)</Form.Label>
               <Form.Control
                 type="url"
                 name="image"
                 value={formData.image}
                 onChange={handleInputChange}
-                placeholder="https://example.com/image.jpg"
-                required
+                placeholder="https://example.com/image.jpg (leave empty for auto-generated placeholder)"
               />
+              <Form.Text className="text-muted">
+                If left empty, a colored placeholder will be generated automatically
+              </Form.Text>
               {formData.image && (
                 <div className="mt-2">
                   <img

@@ -1,84 +1,122 @@
 import React from 'react';
-import { Card } from 'react-bootstrap';
+import './OrderTimeline.css';
 
-const OrderTimeline = ({ timeline, currentStatus }) => {
-  const getStepIcon = (status, completed) => {
-    const icons = {
-      'Order Placed': 'fas fa-shopping-cart',
-      'Order Confirmed': 'fas fa-check-circle',
-      'Preparing': 'fas fa-utensils',
-      'Out for Delivery': 'fas fa-truck',
-      'Delivered': 'fas fa-box-open'
-    };
+const OrderTimeline = ({ status, timeline = [] }) => {
+  // Define order statuses in sequence
+  const orderStatuses = [
+    {
+      key: 'pending',
+      label: 'Order Placed',
+      icon: 'fas fa-shopping-cart',
+      description: 'Your order has been received'
+    },
+    {
+      key: 'confirmed',
+      label: 'Confirmed',
+      icon: 'fas fa-check-circle',
+      description: 'Order confirmed by seller'
+    },
+    {
+      key: 'preparing',
+      label: 'Preparing',
+      icon: 'fas fa-box',
+      description: 'Your order is being prepared'
+    },
+    {
+      key: 'out_for_delivery',
+      label: 'Out for Delivery',
+      icon: 'fas fa-shipping-fast',
+      description: 'Your order is on the way'
+    },
+    {
+      key: 'delivered',
+      label: 'Delivered',
+      icon: 'fas fa-check-double',
+      description: 'Order successfully delivered'
+    }
+  ];
+
+  // Get current status index
+  const currentStatusIndex = orderStatuses.findIndex(s => s.key === status?.toLowerCase());
+  const isCancelled = status?.toLowerCase() === 'cancelled';
+
+  // Merge timeline data with status definitions
+  const getTimelineData = (statusItem, index) => {
+    const timelineEntry = timeline.find(t => t.status?.toLowerCase() === statusItem.key);
+    const isCompleted = isCancelled ? false : (currentStatusIndex >= index);
+    const isCurrent = currentStatusIndex === index;
     
-    return completed ? 'fas fa-check' : icons[status] || 'fas fa-clock';
+    return {
+      ...statusItem,
+      completed: isCompleted,
+      current: isCurrent,
+      timestamp: timelineEntry?.timestamp || null,
+      notes: timelineEntry?.notes || null
+    };
   };
 
-  const getStepColor = (status, completed, current) => {
-    if (completed) return 'success';
-    if (current) return 'primary';
-    return 'muted';
-  };
+  if (isCancelled) {
+    return (
+      <div className="order-timeline">
+        <div className="timeline-item cancelled">
+          <div className="timeline-icon">
+            <i className="fas fa-times-circle"></i>
+          </div>
+          <div className="timeline-content">
+            <h6 className="timeline-title">Order Cancelled</h6>
+            <p className="timeline-description">This order has been cancelled</p>
+            {timeline.find(t => t.status === 'cancelled')?.timestamp && (
+              <span className="timeline-date">
+                {new Date(timeline.find(t => t.status === 'cancelled').timestamp).toLocaleString('en-IN')}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Card>
-      <Card.Header>
-        <h6 className="mb-0">Order Timeline</h6>
-      </Card.Header>
-      <Card.Body>
-        <div className="timeline">
-          {timeline.map((step, index) => {
-            const isCompleted = step.completed;
-            const isCurrent = !isCompleted && index === timeline.findIndex(s => !s.completed);
-            const color = getStepColor(step.status, isCompleted, isCurrent);
-            
-            return (
-              <div key={index} className="timeline-item d-flex align-items-start mb-4">
-                <div 
-                  className={`timeline-icon rounded-circle d-flex align-items-center justify-content-center me-3 bg-${color} ${
-                    color === 'muted' ? 'text-muted' : 'text-white'
-                  }`}
-                  style={{ width: '40px', height: '40px', minWidth: '40px' }}
-                >
-                  <i className={getStepIcon(step.status, isCompleted)}></i>
-                </div>
-                
-                <div className="timeline-content flex-grow-1">
-                  <h6 className={`mb-1 text-${color === 'muted' ? 'muted' : 'dark'}`}>
-                    {step.status}
-                  </h6>
-                  {step.time && (
-                    <p className="mb-0 small text-muted">{step.time}</p>
-                  )}
-                  {isCurrent && (
-                    <div className="mt-2">
-                      <div className="spinner-border spinner-border-sm text-primary me-2"></div>
-                      <span className="small text-primary">In progress...</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Timeline connector line */}
-                {index < timeline.length - 1 && (
-                  <div 
-                    className="timeline-connector"
-                    style={{
-                      position: 'absolute',
-                      left: '19px',
-                      top: '40px',
-                      width: '2px',
-                      height: '40px',
-                      backgroundColor: isCompleted ? '#198754' : '#dee2e6',
-                      marginLeft: '20px'
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Card.Body>
-    </Card>
+    <div className="order-timeline">
+      {orderStatuses.map((statusItem, index) => {
+        const data = getTimelineData(statusItem, index);
+        
+        return (
+          <div 
+            key={statusItem.key} 
+            className={`timeline-item ${data.completed ? 'completed' : ''} ${data.current ? 'current' : ''}`}
+          >
+            <div className="timeline-icon">
+              <i className={statusItem.icon}></i>
+            </div>
+            <div className="timeline-content">
+              <h6 className="timeline-title">{statusItem.label}</h6>
+              <p className="timeline-description">{statusItem.description}</p>
+              {data.timestamp && (
+                <span className="timeline-date">
+                  {new Date(data.timestamp).toLocaleString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              )}
+              {data.notes && (
+                <p className="timeline-notes">
+                  <i className="fas fa-info-circle me-1"></i>
+                  {data.notes}
+                </p>
+              )}
+            </div>
+            {index < orderStatuses.length - 1 && (
+              <div className={`timeline-line ${data.completed ? 'completed' : ''}`}></div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 };
 

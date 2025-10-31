@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Database setup and migration script for Blink Basket
+Database setup and migration script for QuickCart
 """
 import os
 import sys
@@ -115,7 +115,7 @@ def test_database_connection():
 
 def main():
     """Main setup function"""
-    print("🚀 Setting up Blink Basket Database...")
+    print("🚀 Setting up QuickCart Database...")
     print(f"📍 Database: {Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}")
     print("-" * 50)
     

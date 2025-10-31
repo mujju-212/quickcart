@@ -241,13 +241,13 @@ const UserManagement = () => {
                   <tbody>
                     {/* Mock recent orders */}
                     <tr>
-                      <td>BLK001</td>
+                      <td>QC001</td>
                       <td>2024-01-15</td>
                       <td>₹450</td>
                       <td><Badge bg="success">Delivered</Badge></td>
                     </tr>
                     <tr>
-                      <td>BLK002</td>
+                      <td>QC002</td>
                       <td>2024-01-12</td>
                       <td>₹320</td>
                       <td><Badge bg="success">Delivered</Badge></td>
