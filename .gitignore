@@ -84,3 +84,6 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+
+# Documentation folder
+docs/
