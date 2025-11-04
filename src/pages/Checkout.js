@@ -4,7 +4,7 @@ import { Container, Row, Col, Card, Button, Form, Modal, Alert } from 'react-boo
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from '../context/LocationContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom';
 import { FaClipboardList, FaCreditCard, FaCheck } from 'react-icons/fa';
 import orderService from '../services/orderService';
 import { getImagePlaceholder, getProductImage } from '../utils/helpers';
@@ -14,6 +14,13 @@ const Checkout = () => {
   const { user, currentUser } = useAuth();
   const { addresses: contextAddresses, addAddress: addAddressToContext } = useLocation();
   const navigate = useNavigate();
+  const routerLocation = useRouterLocation();
+  
+  // Get coupon data from navigation state
+  const navigationState = routerLocation.state || {};
+  const appliedCoupon = navigationState.appliedCoupon || null;
+  const couponDiscount = parseFloat(navigationState.discount) || 0;
+  const freeDeliveryFromCoupon = navigationState.freeDelivery || false;
   
   const [currentStep, setCurrentStep] = useState(1);
   const [addresses, setAddresses] = useState([]);
@@ -35,9 +42,17 @@ const Checkout = () => {
   const [addressErrors, setAddressErrors] = useState({});
 
   const subtotal = getCartTotal();
-  const deliveryFee = subtotal >= 99 ? 0 : 29;
+  const rawDeliveryFee = subtotal >= 99 ? 0 : 29;
+  const deliveryFee = freeDeliveryFromCoupon ? 0 : rawDeliveryFee;
   const handlingFee = 5;
-  const total = subtotal + deliveryFee + handlingFee;
+  
+  // Calculate total with safe number handling
+  const safeSubtotal = parseFloat(subtotal) || 0;
+  const safeCouponDiscount = parseFloat(couponDiscount) || 0;
+  const safeDeliveryFee = parseFloat(deliveryFee) || 0;
+  const safeHandlingFee = parseFloat(handlingFee) || 0;
+  
+  const total = Math.max(0, safeSubtotal - safeCouponDiscount + safeDeliveryFee + safeHandlingFee);
 
   const paymentMethods = [
     {
@@ -269,7 +284,23 @@ const Checkout = () => {
     }
 
     try {
-      // Backend expects: phone, items (with product_id and quantity), delivery_address
+      // Calculate subtotal from cart items
+      const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const finalDeliveryFee = freeDeliveryFromCoupon ? 0 : deliveryFee;
+      
+      // Use the safe calculated total
+      const totalAmount = total;
+      
+      console.log('🛒 Cart items:', cart);
+      console.log('💰 Calculations:', { 
+        cartSubtotal, 
+        couponDiscount: safeCouponDiscount,
+        deliveryFee: finalDeliveryFee, 
+        handlingFee, 
+        totalAmount 
+      });
+      
+      // Backend expects: phone, items (with product_id and quantity), delivery_address, total, subtotal
       const orderData = {
         phone: currentUser?.phone || user?.phoneNumber || 'N/A',
         items: cart.map(item => ({
@@ -277,14 +308,22 @@ const Checkout = () => {
           quantity: item.quantity
         })),
         delivery_address: `${selectedAddress.house}, ${selectedAddress.area}, ${selectedAddress.city} - ${selectedAddress.pincode}`,
-        payment_method: paymentMethods.find(p => p.id === selectedPayment)?.name?.toLowerCase() || 'cash',
+        payment_method: selectedPayment || 'cod', // Use the ID directly (cod, upi, card)
         payment_status: selectedPayment === 'cod' ? 'pending' : 'completed',
-        delivery_fee: deliveryFee,
-        handling_fee: handlingFee
+        delivery_fee: finalDeliveryFee,
+        handling_fee: handlingFee,
+        subtotal: cartSubtotal,
+        discount: safeCouponDiscount,
+        coupon_code: appliedCoupon?.code || null,
+        total: totalAmount
       };
 
-      // Create order using orderService
+      console.log('📦 Creating order with data:', orderData);
+
+      // Create order using orderService - will throw error if backend fails
       const response = await orderService.createOrder(orderData);
+      
+      console.log('✅ Order creation response:', response);
       
       if (response && response.id) {
         setOrderId(response.id);
@@ -293,39 +332,7 @@ const Checkout = () => {
         const finalTotal = response.total || total;
         setOrderTotal(finalTotal);
 
-        // Save order to localStorage for order history
-        const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-        
-        // Transform backend response to match frontend format
-        // Use backend's calculated total for accuracy
-        const orderForStorage = {
-          id: response.id,
-          customer: currentUser?.name || user?.displayName || 'Guest User',
-          phone: currentUser?.phone || user?.phoneNumber || 'N/A',
-          email: currentUser?.email || user?.email || 'N/A',
-          address: orderData.delivery_address,
-          paymentMethod: orderData.payment_method,
-          paymentStatus: orderData.payment_status,
-          deliveryFee: deliveryFee,
-          handlingFee: handlingFee,
-          items: cart.map(item => ({
-            id: item.id,
-            name: item.name,
-            image: item.image_url || item.image,
-            price: item.price,
-            quantity: item.quantity,
-            size: item.size
-          })),
-          total: finalTotal,
-          subtotal: response.subtotal || subtotal,
-          status: response.status || 'pending',
-          date: response.date || response.created_at || new Date().toISOString()
-        };
-        
-        userOrders.unshift(orderForStorage);
-        localStorage.setItem('userOrders', JSON.stringify(userOrders));
-
-        // Clear cart
+        // Clear cart - order saved to database successfully
         clearCart();
 
         // Show success step
@@ -341,7 +348,8 @@ const Checkout = () => {
       }
     } catch (error) {
       console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
+      console.error('Error message:', error.message);
+      alert(`Failed to place order: ${error.message}`);
     }
   };
 
@@ -684,7 +692,7 @@ const Checkout = () => {
                     size="lg"
                   >
                     <i className="fas fa-check me-2"></i>
-                    Place Order - ₹{total}
+                    Place Order - ₹{total.toFixed(2)}
                   </Button>
                 )}
               </div>
@@ -703,30 +711,49 @@ const Checkout = () => {
               <Card.Body>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                  <span>₹{subtotal}</span>
+                  <span>₹{safeSubtotal.toFixed(2)}</span>
                 </div>
+                
+                {/* Coupon Discount Display */}
+                {safeCouponDiscount > 0 && appliedCoupon && (
+                  <div className="d-flex justify-content-between mb-2 text-success">
+                    <span>
+                      <i className="fas fa-tag me-1"></i>
+                      Coupon ({appliedCoupon.code})
+                    </span>
+                    <span>- ₹{safeCouponDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                
                 <div className="d-flex justify-content-between mb-2">
-                  <span>Delivery Fee</span>
-                  <span className={deliveryFee === 0 ? 'text-success' : ''}>
-                    {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
+                  <span>Delivery Fee {freeDeliveryFromCoupon && <small className="text-success">(FREE)</small>}</span>
+                  <span className={(deliveryFee === 0 || freeDeliveryFromCoupon) ? 'text-success' : ''}>
+                    {deliveryFee === 0 ? 'FREE' : `₹${safeDeliveryFee.toFixed(2)}`}
                   </span>
                 </div>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Handling Fee</span>
-                  <span>₹{handlingFee}</span>
+                  <span>₹{safeHandlingFee.toFixed(2)}</span>
                 </div>
                 
-                {subtotal < 99 && (
+                {subtotal < 99 && !freeDeliveryFromCoupon && (
                   <Alert variant="info" className="small py-2 mt-3">
                     <i className="fas fa-info-circle me-1"></i>
-                    Add ₹{99 - subtotal} more for FREE delivery!
+                    Add ₹{(99 - subtotal).toFixed(2)} more for FREE delivery!
+                  </Alert>
+                )}
+                
+                {safeCouponDiscount > 0 && (
+                  <Alert variant="success" className="small py-2 mt-2">
+                    <i className="fas fa-check-circle me-1"></i>
+                    You're saving ₹{safeCouponDiscount.toFixed(2)} with coupon!
                   </Alert>
                 )}
                 
                 <hr />
                 <div className="d-flex justify-content-between fw-bold fs-5">
                   <span>Total</span>
-                  <span className="text-success">₹{total}</span>
+                  <span className="text-success">₹{total.toFixed(2)}</span>
                 </div>
                 
                 <div className="mt-3 p-2 bg-light rounded">

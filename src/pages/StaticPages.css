@@ -1,0 +1,342 @@
+/* Static Pages Common Styles */
+.static-page {
+  min-height: calc(100vh - 200px);
+}
+
+/* Page Hero */
+.page-hero {
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%);
+  color: #1a1a1a;
+  padding: 4rem 0 3rem;
+  margin-bottom: 0;
+}
+
+.hero-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  opacity: 0.85;
+  margin-bottom: 0;
+  color: #2c2c2c;
+}
+
+/* Section Titles */
+.section-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: #1a1a2e;
+  position: relative;
+  padding-bottom: 0.75rem;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, #ffd700 0%, #ffed4e 100%);
+  border-radius: 2px;
+}
+
+/* Cards */
+.value-card,
+.benefit-card,
+.blog-card,
+.job-card,
+.support-channel-card,
+.resource-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.value-card:hover,
+.benefit-card:hover,
+.blog-card:hover,
+.job-card:hover,
+.support-channel-card:hover,
+.resource-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Icons */
+.value-icon,
+.benefit-icon,
+.support-icon,
+.resource-icon {
+  font-size: 3rem;
+  color: #ffd700;
+  margin-bottom: 1rem;
+}
+
+.contact-icon,
+.issue-icon {
+  font-size: 2rem;
+  color: #ffd700;
+  margin-right: 1rem;
+}
+
+.emergency-icon {
+  font-size: 4rem;
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+.newsletter-icon {
+  font-size: 3rem;
+  color: #ffd700;
+  margin-bottom: 1rem;
+}
+
+/* Mission Card */
+.mission-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Statistics */
+.stats-section {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 3rem 0;
+  border-radius: 15px;
+  margin-top: 2rem;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ffd700;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 1rem;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+
+/* Job Cards */
+.job-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 0.5rem;
+}
+
+.job-meta {
+  margin-bottom: 1rem;
+}
+
+.job-description {
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
+
+/* Blog Cards */
+.blog-image-wrapper {
+  position: relative;
+}
+
+.category-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.blog-meta {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.blog-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 0.75rem;
+}
+
+.blog-excerpt {
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.read-more-link {
+  color: #ffd700;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.read-more-link:hover {
+  color: #f4c430;
+}
+
+/* Newsletter Card */
+.newsletter-card {
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%);
+  color: #1a1a1a;
+  border: none;
+}
+
+.newsletter-card h3 {
+  color: #1a1a1a;
+}
+
+.newsletter-card p {
+  color: #2c2c2c;
+}
+
+/* Contact Cards */
+.contact-info-card,
+.contact-form-card {
+  border: none;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+}
+
+.contact-item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.contact-item h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 0.5rem;
+}
+
+/* FAQ */
+.faq-category-header {
+  display: flex;
+  align-items: center;
+  color: #1a1a2e;
+  margin-bottom: 1.5rem;
+}
+
+.faq-category-header i {
+  font-size: 2rem;
+  color: #ffd700;
+}
+
+.faq-category-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.faq-item {
+  border: 1px solid #e9ecef;
+  margin-bottom: 0.75rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.faq-item .accordion-button {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.faq-item .accordion-button:not(.collapsed) {
+  background-color: #fffef0;
+  color: #d4af37;
+}
+
+/* Search Card */
+.search-card {
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Support Cards */
+.contact-support-card,
+.emergency-support-card,
+.faq-quick-links {
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.common-issue-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.common-issue-card:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Legal Pages */
+.legal-section {
+  margin-bottom: 3rem;
+}
+
+.legal-section h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 1rem;
+}
+
+.legal-section h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.legal-section ul,
+.legal-section ol {
+  padding-left: 1.5rem;
+  line-height: 1.8;
+}
+
+.legal-section li {
+  margin-bottom: 0.5rem;
+  color: #495057;
+}
+
+.legal-last-updated {
+  background: #fffef0;
+  padding: 1rem;
+  border-left: 4px solid #ffd700;
+  margin-bottom: 2rem;
+  border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .stat-number {
+    font-size: 2rem;
+  }
+
+  .page-hero {
+    padding: 3rem 0 2rem;
+  }
+}

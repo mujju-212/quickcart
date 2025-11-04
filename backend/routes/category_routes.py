@@ -9,23 +9,68 @@ category_bp = Blueprint('categories', __name__)
 
 @category_bp.route('/', methods=['GET'])
 def get_all_categories():
-    """Get all categories"""
+    """Get all categories with product count (user view - only non-empty categories)"""
     try:
+        # Get categories with count of in-stock products
         query = """
-            SELECT * FROM categories 
-            WHERE status = 'active' 
-            ORDER BY id
+            SELECT 
+                c.*,
+                COUNT(p.id) as products_count
+            FROM categories c
+            LEFT JOIN products p ON c.id = p.category_id 
+                AND p.status = 'active' 
+                AND p.stock > 0
+            WHERE c.status = 'active'
+            GROUP BY c.id
+            ORDER BY c.position, c.id
         """
         categories = db.execute_query(query, fetch=True)
         
+        # Filter out categories with no products
+        categories_with_products = [dict(cat) for cat in categories if cat['products_count'] > 0]
+        
         return jsonify({
             "success": True,
-            "categories": [dict(category) for category in categories],
-            "count": len(categories)
+            "categories": categories_with_products,
+            "count": len(categories_with_products)
         })
         
     except Exception as e:
         logger.error(f"Error fetching categories: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@category_bp.route('/admin', methods=['GET'])
+@admin_required
+def get_all_categories_admin(current_user):
+    """
+    🔒 SECURED: Get ALL categories with product count for admin (includes empty categories)
+    """
+    try:
+        # Get all categories with count of ALL products (not just in-stock)
+        query = """
+            SELECT 
+                c.*,
+                COUNT(p.id) as products_count
+            FROM categories c
+            LEFT JOIN products p ON c.id = p.category_id 
+                AND p.status = 'active'
+            WHERE c.status = 'active'
+            GROUP BY c.id
+            ORDER BY c.position, c.id
+        """
+        categories = db.execute_query(query, fetch=True)
+        
+        # Return ALL categories for admin (including empty ones)
+        all_categories = [dict(cat) for cat in categories]
+        
+        return jsonify({
+            "success": True,
+            "categories": all_categories,
+            "count": len(all_categories)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching admin categories: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @category_bp.route('/<int:category_id>', methods=['GET'])
@@ -61,16 +106,18 @@ def create_category(current_user):
         
         # 🔒 Sanitize input
         name = InputValidator.sanitize_string(data['name'], max_length=100)
+        position = data.get('position', 0)
         
         query = """
-            INSERT INTO categories (name, image_url, status)
-            VALUES (%s, %s, 'active')
+            INSERT INTO categories (name, image_url, position, status)
+            VALUES (%s, %s, %s, 'active')
             RETURNING *
         """
         
         params = (
             name,
-            data.get('image_url', '')
+            data.get('image_url', ''),
+            position
         )
         
         result = db.execute_query(query, params, fetch=True)
@@ -102,12 +149,17 @@ def update_category(current_user, category_id):
         update_fields = []
         params = []
         
-        allowed_fields = ['name', 'image_url', 'status']
+        allowed_fields = ['name', 'image_url', 'status', 'position']
         
         for field in allowed_fields:
             if field in data:
                 # 🔒 Sanitize string fields
-                value = InputValidator.sanitize_string(data[field], max_length=200) if field in ['name', 'status'] else data[field]
+                if field in ['name', 'status']:
+                    value = InputValidator.sanitize_string(data[field], max_length=200)
+                elif field == 'position':
+                    value = int(data[field])
+                else:
+                    value = data[field]
                 update_fields.append(f"{field} = %s")
                 params.append(value)
         

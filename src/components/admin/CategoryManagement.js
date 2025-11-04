@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Modal, Form, Alert, Badge } from 'react-bootstrap';
 import categoryService from '../../services/categoryService';
 import { PRODUCTS } from '../../utils/constants';
 import { getColoredPlaceholder } from '../../utils/helpers';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -10,50 +11,35 @@ const CategoryManagement = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    image: ''
+    image: '',
+    position: 0
   });
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     setLoading(true);
     try {
-      // Clear any cached category data to ensure fresh API data
-      localStorage.removeItem('categories');
-      console.log('🔄 Admin: Cleared category cache, loading fresh data...');
+      console.log('🔄 Admin: Loading categories from admin API...');
       
-      // Ensure products are initialized in localStorage
-      const storedProducts = localStorage.getItem('products');
-      if (!storedProducts) {
-        localStorage.setItem('products', JSON.stringify(PRODUCTS));
-        console.log('📦 Initialized products in localStorage');
-      }
-      
-      // Get all categories from service (includes both constants and newly added)
-      const categoriesData = await categoryService.getAllCategories();
-      const productsData = JSON.parse(localStorage.getItem('products')) || PRODUCTS;
+      // Call the admin API endpoint to get ALL categories with accurate counts
+      const response = await categoryService.getAllCategoriesAdmin();
       
       console.log('🔍 ADMIN LoadCategories Debug:');
-      console.log('Categories from service:', categoriesData);
-      console.log('Categories count:', categoriesData?.length);
-      console.log('Products data:', productsData.length, 'products');
+      console.log('Admin API response:', response);
       
-      // Count products per category
-      const categoriesWithCount = categoriesData.map(category => {
-        const productCount = productsData.filter(product => product.category === category.name).length;
-        console.log(`Category "${category.name}" has ${productCount} products`);
-        return {
+      if (response.success && response.categories) {
+        // Use products_count directly from the database
+        const categoriesData = response.categories.map(category => ({
           ...category,
-          productCount
-        };
-      });
-      
-      console.log('Final categories with count:', categoriesWithCount);
-      setCategories(categoriesWithCount);
+          productCount: category.products_count || 0
+        }));
+        
+        console.log('Final categories with count:', categoriesData);
+        setCategories(categoriesData);
+      } else {
+        throw new Error(response.error || 'Failed to load categories');
+      }
     } catch (error) {
       console.error('Error loading categories:', error);
       setAlert({
@@ -64,7 +50,14 @@ const CategoryManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Enable auto-refresh every 20 seconds
+  useAutoRefresh(loadCategories, 20000, true);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   const showAlert = (message, type = 'success') => {
     setAlert({ show: true, message, type });
@@ -73,13 +66,17 @@ const CategoryManagement = () => {
 
   const handleAdd = () => {
     setEditingCategory(null);
-    setFormData({ name: '', image: '' });
+    setFormData({ name: '', image: '', position: categories.length });
     setShowModal(true);
   };
 
   const handleEdit = (category) => {
     setEditingCategory(category);
-    setFormData({ name: category.name, image: category.image_url || category.image || '' });
+    setFormData({ 
+      name: category.name, 
+      image: category.image_url || category.image || '',
+      position: category.position || 0
+    });
     setShowModal(true);
   };
 
@@ -136,7 +133,8 @@ const CategoryManagement = () => {
       const submissionData = {
         name: formData.name,
         // Send as image_url (API expects this field name)
-        image_url: formData.image || getColoredPlaceholder(formData.name, '#2196F3')
+        image_url: formData.image || getColoredPlaceholder(formData.name, '#2196F3'),
+        position: parseInt(formData.position) || 0
       };
 
       if (editingCategory) {
@@ -194,6 +192,7 @@ const CategoryManagement = () => {
               <tr>
                 <th>Image</th>
                 <th>Name</th>
+                <th>Position</th>
                 <th>Products</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -202,7 +201,7 @@ const CategoryManagement = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-4">
+                  <td colSpan="6" className="text-center py-4">
                     <div className="spinner-border text-primary" role="status">
                       <span className="visually-hidden">Loading...</span>
                     </div>
@@ -211,7 +210,7 @@ const CategoryManagement = () => {
                 </tr>
               ) : categories.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-4 text-muted">
+                  <td colSpan="6" className="text-center py-4 text-muted">
                     No categories found. Add your first category to get started.
                   </td>
                 </tr>
@@ -232,6 +231,9 @@ const CategoryManagement = () => {
                   </td>
                   <td>
                     <div className="fw-semibold">{category.name}</div>
+                  </td>
+                  <td>
+                    <Badge bg="secondary">{category.position || 0}</Badge>
                   </td>
                   <td>
                     <Badge bg="info">{category.productCount} products</Badge>
@@ -313,6 +315,22 @@ const CategoryManagement = () => {
                   />
                 </div>
               )}
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Display Position *</Form.Label>
+              <Form.Control
+                type="number"
+                name="position"
+                value={formData.position}
+                onChange={handleInputChange}
+                placeholder="Enter display position (0 for first)"
+                min="0"
+                required
+              />
+              <Form.Text className="text-muted">
+                Lower numbers appear first. Use 0 for the first position.
+              </Form.Text>
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>

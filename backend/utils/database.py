@@ -37,7 +37,7 @@ class Database:
     def get_cursor(self):
         """Get database cursor with connection"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             try:
                 yield cursor
                 conn.commit()

@@ -237,3 +237,95 @@ def delete_user_address(address_id):
     except Exception as e:
         logger.error(f"Error deleting address {address_id}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@user_bp.route('/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    """Update user details (admin only)"""
+    from utils.auth_middleware import admin_required
+    
+    @admin_required
+    def _update_user(admin_user):
+        try:
+            data = request.get_json()
+            
+            # Validate input
+            if not data:
+                return jsonify({"success": False, "message": "No data provided"}), 400
+            
+            # Build update query dynamically based on provided fields
+            allowed_fields = ['name', 'email', 'phone', 'role', 'status']
+            update_fields = []
+            update_values = []
+            
+            for field in allowed_fields:
+                if field in data:
+                    update_fields.append(f"{field} = %s")
+                    update_values.append(data[field])
+            
+            if not update_fields:
+                return jsonify({"success": False, "message": "No valid fields to update"}), 400
+            
+            # Add updated_at timestamp
+            update_fields.append("updated_at = CURRENT_TIMESTAMP")
+            update_values.append(user_id)
+            
+            # Build and execute update query
+            update_query = f"""
+                UPDATE users 
+                SET {', '.join(update_fields)}
+                WHERE id = %s
+                RETURNING id, name, email, phone, role, status, created_at, updated_at
+            """
+            
+            updated_user = db.execute_query_one(update_query, tuple(update_values))
+            
+            if updated_user:
+                return jsonify({
+                    "success": True,
+                    "message": "User updated successfully",
+                    "user": dict(updated_user)
+                })
+            else:
+                return jsonify({"success": False, "message": "User not found"}), 404
+                
+        except Exception as e:
+            logger.error(f"Error updating user {user_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"success": False, "message": str(e)}), 500
+    
+    return _update_user()
+
+
+@user_bp.route('/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    """Get user details by ID (admin only)"""
+    from utils.auth_middleware import admin_required
+    
+    @admin_required
+    def _get_user(admin_user):
+        try:
+            query = """
+                SELECT id, name, phone, email, role, status, 
+                       login_count, last_login, created_at, updated_at,
+                       (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as order_count,
+                       (SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE user_id = users.id) as total_spent
+                FROM users 
+                WHERE id = %s
+            """
+            user = db.execute_query_one(query, (user_id,))
+            
+            if user:
+                return jsonify({
+                    "success": True,
+                    "user": dict(user)
+                })
+            else:
+                return jsonify({"success": False, "message": "User not found"}), 404
+                
+        except Exception as e:
+            logger.error(f"Error fetching user {user_id}: {e}")
+            return jsonify({"success": False, "message": str(e)}), 500
+    
+    return _get_user()

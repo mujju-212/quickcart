@@ -51,17 +51,19 @@
 }
 
 .search-btn {
-  background: #ffe01b;
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%);
   border: none;
-  color: #000;
+  color: #1a1a1a;
   padding: 0.75rem 1.5rem;
   font-weight: 600;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
   transition: all 0.3s ease;
 }
 
 .search-btn:hover {
-  background: #ffd700;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
 }
 
 /* Search Suggestions */
@@ -222,8 +224,8 @@
 }
 
 .filter-select:focus {
-  border-color: #ffe01b;
-  box-shadow: 0 0 0 0.2rem rgba(255, 224, 27, 0.25);
+  border-color: #ffd700;
+  box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25);
 }
 
 .clear-filters-btn {

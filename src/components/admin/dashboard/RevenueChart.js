@@ -1,30 +1,58 @@
-import React, { useState } from 'react';
-import { Card, Row, Col, ButtonGroup, Button } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Card, Row, Col, ButtonGroup, Button, Spinner } from 'react-bootstrap';
+import analyticsService from '../../../services/analyticsService';
 
 const RevenueChart = () => {
-  const [timeRange, setTimeRange] = useState('6months');
+  const [timeRange, setTimeRange] = useState('7d');
+  const [revenueData, setRevenueData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for revenue trend
-  const revenueData = {
-    '6months': [
-      { month: 'Jan', revenue: 15000, orders: 45 },
-      { month: 'Feb', revenue: 18000, orders: 52 },
-      { month: 'Mar', revenue: 22000, orders: 68 },
-      { month: 'Apr', revenue: 19000, orders: 58 },
-      { month: 'May', revenue: 25000, orders: 75 },
-      { month: 'Jun', revenue: 28000, orders: 82 }
-    ],
-    '3months': [
-      { month: 'Apr', revenue: 19000, orders: 58 },
-      { month: 'May', revenue: 25000, orders: 75 },
-      { month: 'Jun', revenue: 28000, orders: 82 }
-    ]
+  useEffect(() => {
+    loadRevenueData();
+  }, [timeRange]);
+
+  const loadRevenueData = async () => {
+    setLoading(true);
+    setRevenueData([]); // Clear previous data before loading new data
+    try {
+      console.log('Loading revenue data for period:', timeRange);
+      const response = await analyticsService.getRevenueChartData(timeRange);
+      console.log('Revenue chart response:', response);
+      
+      if (response.success && response.data) {
+        // Transform data for chart
+        const chartData = response.data.map(item => {
+          // For 7d, format the date. For 30d/90d/1y, use the label as-is (it's already a range)
+          let label;
+          if (timeRange === '7d') {
+            label = new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+          } else {
+            // Backend sends formatted range labels for 30d/90d/1y
+            label = item.date;
+          }
+          
+          return {
+            label: label,
+            revenue: item.revenue,
+            orders: item.orderCount
+          };
+        });
+        console.log('Transformed chart data:', chartData);
+        setRevenueData(chartData);
+      } else {
+        console.error('Revenue chart response not successful:', response);
+      }
+    } catch (error) {
+      console.error('Error loading revenue data:', error);
+      setRevenueData([]); // Clear data on error
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const currentData = revenueData[timeRange];
-  const maxRevenue = Math.max(...currentData.map(d => d.revenue));
-  const totalRevenue = currentData.reduce((sum, data) => sum + data.revenue, 0);
-  const avgRevenue = totalRevenue / currentData.length;
+  const maxRevenue = Math.max(...revenueData.map(d => d.revenue), 1);
+  const totalRevenue = revenueData.reduce((sum, data) => sum + data.revenue, 0);
+  const avgRevenue = revenueData.length > 0 ? totalRevenue / revenueData.length : 0;
 
   return (
     <Card className="shadow-sm border-0 h-100" style={{ borderRadius: '15px' }}>
@@ -44,95 +72,87 @@ const RevenueChart = () => {
         </div>
         <ButtonGroup size="sm">
           <Button
-            variant={timeRange === '3months' ? 'warning' : 'outline-secondary'}
-            onClick={() => setTimeRange('3months')}
+            variant={timeRange === '7d' ? 'warning' : 'outline-secondary'}
+            onClick={() => setTimeRange('7d')}
             style={{
-              backgroundColor: timeRange === '3months' ? '#ffe01b' : 'transparent',
-              border: timeRange === '3months' ? 'none' : '1px solid #dee2e6',
-              color: timeRange === '3months' ? '#000' : '#666',
+              backgroundColor: timeRange === '7d' ? '#ffe01b' : 'transparent',
+              border: timeRange === '7d' ? 'none' : '1px solid #dee2e6',
+              color: timeRange === '7d' ? '#000' : '#666',
               fontWeight: '600'
             }}
           >
-            3M
+            7D
           </Button>
           <Button
-            variant={timeRange === '6months' ? 'warning' : 'outline-secondary'}
-            onClick={() => setTimeRange('6months')}
+            variant={timeRange === '30d' ? 'warning' : 'outline-secondary'}
+            onClick={() => setTimeRange('30d')}
             style={{
-              backgroundColor: timeRange === '6months' ? '#ffe01b' : 'transparent',
-              border: timeRange === '6months' ? 'none' : '1px solid #dee2e6',
-              color: timeRange === '6months' ? '#000' : '#666',
+              backgroundColor: timeRange === '30d' ? '#ffe01b' : 'transparent',
+              border: timeRange === '30d' ? 'none' : '1px solid #dee2e6',
+              color: timeRange === '30d' ? '#000' : '#666',
               fontWeight: '600'
             }}
           >
-            6M
+            30D
           </Button>
         </ButtonGroup>
       </Card.Header>
       <Card.Body>
-        <div className="chart-container" style={{ height: '280px', position: 'relative' }}>
-          <Row className="h-100 align-items-end">
-            {currentData.map((data, index) => {
-              const height = (data.revenue / maxRevenue) * 230;
-              return (
-                <Col key={index} className="text-center position-relative">
-                  <div 
-                    className="chart-bar mx-auto mb-2 position-relative"
-                    style={{
-                      height: `${height}px`,
-                      width: '40px',
-                      background: 'linear-gradient(180deg, #ffe01b 0%, #ffd700 100%)',
-                      borderRadius: '8px 8px 0 0',
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(255,224,27,0.3)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = 'linear-gradient(180deg, #ffd700 0%, #ffcd00 100%)';
-                      e.target.style.transform = 'scale(1.05)';
-                      e.target.style.boxShadow = '0 4px 16px rgba(255,224,27,0.5)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'linear-gradient(180deg, #ffe01b 0%, #ffd700 100%)';
-                      e.target.style.transform = 'scale(1)';
-                      e.target.style.boxShadow = '0 2px 8px rgba(255,224,27,0.3)';
-                    }}
-                    title={`₹${data.revenue.toLocaleString()}\n${data.orders} orders`}
-                  >
-                    {/* Tooltip on hover */}
+        {loading ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" variant="primary" />
+            <p className="mt-2 text-muted">Loading chart data...</p>
+          </div>
+        ) : revenueData.length === 0 ? (
+          <div className="text-center py-5">
+            <i className="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <p className="text-muted">No revenue data available</p>
+          </div>
+        ) : (
+          <div className="chart-container" style={{ height: '280px', position: 'relative' }}>
+            <Row className="h-100 align-items-end">
+              {revenueData.map((data, index) => {
+                const height = (data.revenue / maxRevenue) * 230;
+                return (
+                  <Col key={index} className="text-center position-relative">
                     <div 
-                      className="position-absolute"
+                      className="chart-bar mx-auto mb-2 position-relative"
                       style={{
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginBottom: '8px',
-                        opacity: 0,
-                        transition: 'opacity 0.3s'
+                        height: `${height}px`,
+                        width: '40px',
+                        background: 'linear-gradient(180deg, #ffe01b 0%, #ffd700 100%)',
+                        borderRadius: '8px 8px 0 0',
+                        transition: 'all 0.3s ease',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(255,224,27,0.3)'
                       }}
-                      onMouseEnter={(e) => e.target.style.opacity = 1}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = 'linear-gradient(180deg, #ffd700 0%, #ffcd00 100%)';
+                        e.target.style.transform = 'scale(1.05)';
+                        e.target.style.boxShadow = '0 4px 16px rgba(255,224,27,0.5)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = 'linear-gradient(180deg, #ffe01b 0%, #ffd700 100%)';
+                        e.target.style.transform = 'scale(1)';
+                        e.target.style.boxShadow = '0 2px 8px rgba(255,224,27,0.3)';
+                      }}
+                      title={`₹${data.revenue.toLocaleString()}\n${data.orders} orders`}
                     >
-                      <div 
-                        className="bg-dark text-white px-2 py-1 rounded"
-                        style={{ fontSize: '10px', whiteSpace: 'nowrap' }}
-                      >
-                        ₹{data.revenue.toLocaleString()}
-                      </div>
                     </div>
-                  </div>
-                  <small className="text-muted fw-bold d-block">{data.month}</small>
-                  <small style={{ color: '#28a745', fontWeight: 'bold', fontSize: '10px' }}>
-                    ₹{(data.revenue / 1000).toFixed(0)}K
-                  </small>
-                  <br/>
-                  <small className="text-muted" style={{ fontSize: '9px' }}>
-                    {data.orders} orders
-                  </small>
-                </Col>
-              );
-            })}
-          </Row>
-        </div>
+                    <small className="text-muted fw-bold d-block">{data.label}</small>
+                    <small style={{ color: '#28a745', fontWeight: 'bold', fontSize: '10px' }}>
+                      ₹{data.revenue > 1000 ? (data.revenue / 1000).toFixed(1) + 'K' : data.revenue.toFixed(0)}
+                    </small>
+                    <br/>
+                    <small className="text-muted" style={{ fontSize: '9px' }}>
+                      {data.orders} orders
+                    </small>
+                  </Col>
+                );
+              })}
+            </Row>
+          </div>
+        )}
         
         {/* Summary Stats */}
         <div className="mt-4 pt-3 border-top">

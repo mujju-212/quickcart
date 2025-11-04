@@ -62,8 +62,8 @@ const ProductForm = ({ show, onHide, product }) => {
 
   return (
     <Modal show={show} onHide={onHide} centered size="lg">
-      <Modal.Header closeButton style={{ backgroundColor: '#ffd60a' }}>
-        <Modal.Title style={{ color: '#333', fontWeight: 'bold' }}>
+      <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #ffd700 0%, #f4c430 100%)' }}>
+        <Modal.Title style={{ color: '#1a1a1a', fontWeight: 'bold' }}>
           {product ? 'Edit Product' : 'Add New Product'}
         </Modal.Title>
       </Modal.Header>
@@ -188,7 +188,13 @@ const ProductForm = ({ show, onHide, product }) => {
           </Button>
           <Button 
             type="submit"
-            style={{ backgroundColor: '#ffd60a', border: 'none', color: '#333', fontWeight: 'bold' }}
+            style={{ 
+              background: 'linear-gradient(135deg, #ffd700 0%, #f4c430 100%)', 
+              border: 'none', 
+              color: '#1a1a1a', 
+              fontWeight: 'bold',
+              boxShadow: '0 4px 15px rgba(255, 215, 0, 0.3)'
+            }}
           >
             {product ? 'Update Product' : 'Add Product'}
           </Button>

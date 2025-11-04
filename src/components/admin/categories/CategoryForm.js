@@ -40,8 +40,8 @@ const CategoryForm = ({ show, onHide, category }) => {
 
   return (
     <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton style={{ backgroundColor: '#ffd60a' }}>
-        <Modal.Title style={{ color: '#333', fontWeight: 'bold' }}>
+      <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #ffd700 0%, #f4c430 100%)' }}>
+        <Modal.Title style={{ color: '#1a1a1a', fontWeight: 'bold' }}>
           {category ? 'Edit Category' : 'Add New Category'}
         </Modal.Title>
       </Modal.Header>
@@ -94,7 +94,13 @@ const CategoryForm = ({ show, onHide, category }) => {
           </Button>
           <Button 
             type="submit"
-            style={{ backgroundColor: '#ffd60a', border: 'none', color: '#333', fontWeight: 'bold' }}
+            style={{ 
+              background: 'linear-gradient(135deg, #ffd700 0%, #f4c430 100%)', 
+              border: 'none', 
+              color: '#1a1a1a', 
+              fontWeight: 'bold',
+              boxShadow: '0 4px 15px rgba(255, 215, 0, 0.3)'
+            }}
           >
             {category ? 'Update Category' : 'Add Category'}
           </Button>

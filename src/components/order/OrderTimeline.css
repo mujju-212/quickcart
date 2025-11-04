@@ -40,10 +40,10 @@
 }
 
 .timeline-item.current .timeline-icon {
-  background: linear-gradient(135deg, #ffe01b 0%, #f8cb46 100%);
-  color: #000;
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%);
+  color: #1a1a1a;
   animation: bounce 1s infinite;
-  box-shadow: 0 4px 12px rgba(255, 224, 27, 0.4);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
 }
 
 .timeline-item.cancelled .timeline-icon {
@@ -89,7 +89,7 @@
   font-size: 13px;
   color: #495057;
   margin-top: 8px;
-  border-left: 3px solid #ffe01b;
+  border-left: 3px solid #ffd700;
 }
 
 .timeline-line {

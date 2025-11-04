@@ -33,10 +33,41 @@ const Account = () => {
   };
 
   useEffect(() => {
-    // Load orders from localStorage
-    const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-    setOrders(userOrders);
+    // Load orders from API
+    loadOrders();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(loadOrders, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const loadOrders = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5001/api'}/orders`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+        } else {
+          setOrders([]);
+        }
+      } else {
+        setOrders([]);
+      }
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      setOrders([]);
+    }
+  };
 
   // Redirect to login if not authenticated
   if (!currentUser) {

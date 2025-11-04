@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Badge, Button, Modal, Form, InputGroup } from 'react-bootstrap';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Table, Badge, Button, Modal, Form, InputGroup, Spinner } from 'react-bootstrap';
+import analyticsService from '../../services/analyticsService';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -7,66 +9,51 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/analytics/users', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        credentials: 'include'
+      });
+      
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Users API response:', data);
+      console.log('Number of users:', data.data ? data.data.length : 0);
+      
+      if (data.success && data.data) {
+        console.log('Setting users:', data.data);
+        setUsers(data.data);
+        setFilteredUsers(data.data);
+      } else {
+        console.error('Failed to load users:', data.message);
+        alert(`Failed to load users: ${data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      alert(`Error loading users: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Enable auto-refresh every 20 seconds
+  useAutoRefresh(loadUsers, 20000, true);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   useEffect(() => {
     filterUsers();
   }, [users, searchTerm]);
-
-  const loadUsers = () => {
-    // Mock user data - in real app, this would come from an API
-    const mockUsers = [
-      {
-        id: 1,
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '+91 9876543210',
-        orders: 5,
-        totalSpent: 2500,
-        joined: '2024-01-01',
-        status: 'active',
-        lastOrder: '2024-01-15'
-      },
-      {
-        id: 2,
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        phone: '+91 9876543211',
-        orders: 3,
-        totalSpent: 1800,
-        joined: '2024-01-05',
-        status: 'active',
-        lastOrder: '2024-01-10'
-      },
-      {
-        id: 3,
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        phone: '+91 9876543212',
-        orders: 8,
-        totalSpent: 4200,
-        joined: '2023-12-15',
-        status: 'active',
-        lastOrder: '2024-01-12'
-      },
-      {
-        id: 4,
-        name: 'Sarah Wilson',
-        email: 'sarah@example.com',
-        phone: '+91 9876543213',
-        orders: 1,
-        totalSpent: 350,
-        joined: '2024-01-10',
-        status: 'inactive',
-        lastOrder: '2024-01-10'
-      }
-    ];
-
-    setUsers(mockUsers);
-  };
 
   const filterUsers = () => {
     if (!searchTerm) {
@@ -116,76 +103,85 @@ const UserManagement = () => {
           </div>
         </Card.Header>
         <Card.Body>
-          <Table responsive hover>
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Contact</th>
-                <th>Orders</th>
-                <th>Total Spent</th>
-                <th>Tier</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user) => {
-                const tierInfo = getUserTier(user.totalSpent);
-                return (
-                  <tr key={user.id}>
-                    <td>
-                      <div>
-                        <div className="fw-semibold">{user.name}</div>
-                        <small className="text-muted">ID: {user.id}</small>
-                      </div>
-                    </td>
-                    <td>
-                      <div>
-                        <div className="small">{user.email}</div>
-                        <div className="small text-muted">{user.phone}</div>
-                      </div>
-                    </td>
-                    <td>
-                      <Badge bg="info">{user.orders}</Badge>
-                    </td>
-                    <td>
-                      <div className="fw-semibold text-success">₹{user.totalSpent.toLocaleString()}</div>
-                    </td>
-                    <td>
-                      <Badge bg={tierInfo.variant}>{tierInfo.tier}</Badge>
-                    </td>
-                    <td>
-                      <Badge bg={getStatusVariant(user.status)}>
-                        {user.status.toUpperCase()}
-                      </Badge>
-                    </td>
-                    <td>
-                      <div className="small">{user.joined}</div>
-                    </td>
-                    <td>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => handleViewUser(user)}
-                      >
-                        <i className="fas fa-eye"></i>
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
-
-          {filteredUsers.length === 0 && (
-            <div className="text-center py-4">
-              <i className="fas fa-users fa-3x text-muted mb-3"></i>
-              <h5>No users found</h5>
-              <p className="text-muted">
-                {searchTerm ? `No users match "${searchTerm}"` : 'No users registered yet'}
-              </p>
+          {loading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="warning" />
+              <p className="mt-2 text-muted">Loading users...</p>
             </div>
+          ) : (
+            <>
+              <Table responsive hover>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Contact</th>
+                    <th>Orders</th>
+                    <th>Total Spent</th>
+                    <th>Tier</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user) => {
+                    const tierInfo = getUserTier(user.totalSpent);
+                    return (
+                      <tr key={user.id}>
+                        <td>
+                          <div>
+                            <div className="fw-semibold">{user.name}</div>
+                            <small className="text-muted">ID: {user.id}</small>
+                          </div>
+                        </td>
+                        <td>
+                          <div>
+                            <div className="small">{user.email || 'N/A'}</div>
+                            <div className="small text-muted">{user.phone}</div>
+                          </div>
+                        </td>
+                        <td>
+                          <Badge bg="info">{user.orderCount}</Badge>
+                        </td>
+                        <td>
+                          <div className="fw-semibold text-success">₹{user.totalSpent.toLocaleString()}</div>
+                        </td>
+                        <td>
+                          <Badge bg={tierInfo.variant}>{tierInfo.tier}</Badge>
+                        </td>
+                        <td>
+                          <Badge bg={getStatusVariant(user.status)}>
+                            {user.status.toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div className="small">{new Date(user.joinedAt).toLocaleDateString('en-IN')}</div>
+                        </td>
+                        <td>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleViewUser(user)}
+                          >
+                            <i className="fas fa-eye"></i>
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-4">
+                  <i className="fas fa-users fa-3x text-muted mb-3"></i>
+                  <h5>No users found</h5>
+                  <p className="text-muted">
+                    {searchTerm ? `No users match "${searchTerm}"` : 'No users registered yet'}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </Card.Body>
       </Card>
@@ -202,15 +198,20 @@ const UserManagement = () => {
                 <div className="col-md-6">
                   <h6>Personal Information</h6>
                   <p><strong>Name:</strong> {selectedUser.name}</p>
-                  <p><strong>Email:</strong> {selectedUser.email}</p>
+                  <p><strong>Email:</strong> {selectedUser.email || 'N/A'}</p>
                   <p><strong>Phone:</strong> {selectedUser.phone}</p>
-                  <p><strong>Member Since:</strong> {selectedUser.joined}</p>
+                  <p><strong>Member Since:</strong> {new Date(selectedUser.joinedAt).toLocaleDateString('en-IN')}</p>
+                  {selectedUser.lastLogin && (
+                    <p><strong>Last Login:</strong> {new Date(selectedUser.lastLogin).toLocaleString('en-IN')}</p>
+                  )}
                 </div>
                 <div className="col-md-6">
                   <h6>Account Statistics</h6>
-                  <p><strong>Total Orders:</strong> {selectedUser.orders}</p>
+                  <p><strong>Total Orders:</strong> {selectedUser.orderCount}</p>
                   <p><strong>Total Spent:</strong> ₹{selectedUser.totalSpent.toLocaleString()}</p>
-                  <p><strong>Last Order:</strong> {selectedUser.lastOrder}</p>
+                  {selectedUser.lastOrderDate && (
+                    <p><strong>Last Order:</strong> {new Date(selectedUser.lastOrderDate).toLocaleDateString('en-IN')}</p>
+                  )}
                   <p>
                     <strong>Status:</strong>{' '}
                     <Badge bg={getStatusVariant(selectedUser.status)}>

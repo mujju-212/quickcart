@@ -420,53 +420,54 @@ main {
   font-weight: 600;
   backdrop-filter: blur(10px);
 }
-/* App.css - Maintain yellow theme */
+/* App.css - Maintain yellow gradient theme */
 
-/* Override Bootstrap primary color to yellow */
+/* Override Bootstrap primary color to yellow gradient */
 :root {
-  --bs-primary: #ffe01b;
-  --bs-primary-rgb: 255, 224, 27;
+  --bs-primary: #ffd700;
+  --bs-primary-rgb: 255, 215, 0;
 }
 
 .btn-primary {
-  background-color: #ffe01b !important;
-  border-color: #ffe01b !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%) !important;
+  border: none !important;
+  color: #1a1a1a !important;
   font-weight: 600 !important;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3) !important;
+  transition: all 0.3s ease !important;
 }
 
 .btn-primary:hover {
-  background-color: #e6c700 !important;
-  border-color: #e6c700 !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4) !important;
+  color: #1a1a1a !important;
 }
 
 .btn-primary:focus,
 .btn-primary.focus {
-  background-color: #e6c700 !important;
-  border-color: #e6c700 !important;
-  color: #000 !important;
-  box-shadow: 0 0 0 0.2rem rgba(255, 224, 27, 0.25) !important;
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%) !important;
+  color: #1a1a1a !important;
+  box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25), 0 4px 15px rgba(255, 215, 0, 0.3) !important;
 }
 
 .btn-primary:not(:disabled):not(.disabled):active,
 .btn-primary:not(:disabled):not(.disabled).active {
-  background-color: #e6c700 !important;
-  border-color: #e6c700 !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, #f4c430 0%, #d4af37 100%) !important;
+  color: #1a1a1a !important;
 }
 
 .text-primary {
-  color: #000 !important;
+  color: #ffd700 !important;
 }
 
 .border-primary {
-  border-color: #ffe01b !important;
+  border-color: #ffd700 !important;
 }
 
 .bg-primary {
-  background-color: #ffe01b !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%) !important;
+  color: #1a1a1a !important;
 }
 
 /* Navbar brand styling */
@@ -480,20 +481,20 @@ main {
 
 /* Form controls focus */
 .form-control:focus {
-  border-color: #ffe01b !important;
-  box-shadow: 0 0 0 0.2rem rgba(255, 224, 27, 0.25) !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25) !important;
 }
 
 /* Dropdown styling */
 .dropdown-toggle {
-  border-color: #ffe01b !important;
-  color: #000 !important;
+  border-color: #ffd700 !important;
+  color: #1a1a1a !important;
 }
 
 .dropdown-toggle:hover {
-  background-color: #ffe01b !important;
-  border-color: #ffe01b !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%) !important;
+  border: none !important;
+  color: #1a1a1a !important;
 }
 
 /* Product card hover effects */
@@ -504,8 +505,8 @@ main {
 
 .product-card:hover {
   transform: translateY(-4px) !important;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-  border-color: #ffe01b !important;
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3) !important;
+  border-color: #ffd700 !important;
 }
 
 /* Category card styling */
@@ -516,26 +517,26 @@ main {
 
 .category-card:hover {
   transform: translateY(-3px) !important;
-  border-color: #ffe01b !important;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3) !important;
 }
 
 /* Badge styling */
 .badge.bg-primary {
-  background-color: #ffe01b !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, #ffd700 0%, #f4c430 100%) !important;
+  color: #1a1a1a !important;
 }
 
 /* Alert styling */
 .alert-primary {
-  background-color: rgba(255, 224, 27, 0.1) !important;
-  border-color: #ffe01b !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(244, 196, 48, 0.1) 100%) !important;
+  border-color: #ffd700 !important;
+  color: #1a1a1a !important;
 }
 
 /* Spinner color */
 .spinner-border.text-primary {
-  color: #ffe01b !important;
+  color: #ffd700 !important;
 }
 
 /* Link colors */

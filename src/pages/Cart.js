@@ -27,20 +27,43 @@ const Cart = () => {
   let freeDelivery = false;
   
   if (appliedCoupon) {
+    console.log('🎟️ Applied Coupon:', appliedCoupon);
+    console.log('💰 Subtotal:', subtotal);
+    
     if (appliedCoupon.discount_type === 'percentage') {
-      discount = (subtotal * appliedCoupon.discount_value) / 100;
+      const discountValue = parseFloat(appliedCoupon.discount_value) || 0;
+      discount = (subtotal * discountValue) / 100;
+      console.log('📊 Percentage discount calculation:', discountValue, '%', '=', discount);
       if (appliedCoupon.max_discount_amount) {
-        discount = Math.min(discount, parseFloat(appliedCoupon.max_discount_amount));
+        const maxDiscount = parseFloat(appliedCoupon.max_discount_amount) || 0;
+        discount = Math.min(discount, maxDiscount);
+        console.log('🔒 Max discount applied:', maxDiscount, '→ Final:', discount);
       }
     } else if (appliedCoupon.discount_type === 'fixed') {
-      discount = Math.min(parseFloat(appliedCoupon.discount_value), subtotal);
+      const discountValue = parseFloat(appliedCoupon.discount_value) || 0;
+      discount = Math.min(discountValue, subtotal);
+      console.log('💵 Fixed discount:', discount);
     } else if (appliedCoupon.discount_type === 'free_delivery') {
       freeDelivery = true;
+      console.log('🚚 Free delivery applied');
     }
   }
   
-  const finalDeliveryFee = freeDelivery ? 0 : deliveryFee;
-  const total = subtotal - discount + finalDeliveryFee + handlingFee;
+  // Ensure all values are valid numbers
+  const safeDiscount = parseFloat(discount) || 0;
+  const finalDeliveryFee = freeDelivery ? 0 : (parseFloat(deliveryFee) || 0);
+  const safeHandlingFee = parseFloat(handlingFee) || 0;
+  const safeSubtotal = parseFloat(subtotal) || 0;
+  
+  console.log('🧮 Final Calculation:', {
+    safeSubtotal,
+    safeDiscount,
+    finalDeliveryFee,
+    safeHandlingFee,
+    total: safeSubtotal - safeDiscount + finalDeliveryFee + safeHandlingFee
+  });
+  
+  const total = Math.max(0, safeSubtotal - safeDiscount + finalDeliveryFee + safeHandlingFee);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -84,11 +107,11 @@ const Cart = () => {
       navigate('/login', { state: { from: { pathname: '/checkout' } } });
       return;
     }
-    // Pass coupon data to checkout
+    // Pass coupon data to checkout with safe values
     navigate('/checkout', { 
       state: { 
         appliedCoupon,
-        discount,
+        discount: safeDiscount,
         freeDelivery 
       } 
     });
@@ -211,10 +234,13 @@ const Cart = () => {
               </div>
               
               {/* Discount Display */}
-              {discount > 0 && (
-                <div className="d-flex justify-content-between mb-2 text-success">
-                  <span>Coupon Discount</span>
-                  <span>- ₹{discount.toFixed(2)}</span>
+              {appliedCoupon && (
+                <div className="d-flex justify-content-between mb-2 text-success fw-bold" style={{ fontSize: '15px' }}>
+                  <span>
+                    <i className="fas fa-tag me-2"></i>
+                    Coupon Discount
+                  </span>
+                  <span>- ₹{safeDiscount.toFixed(2)}</span>
                 </div>
               )}
               
@@ -242,10 +268,10 @@ const Cart = () => {
                 <span className="text-success">₹{total.toFixed(2)}</span>
               </div>
               
-              {discount > 0 && (
+              {safeDiscount > 0 && (
                 <div className="text-center mt-2">
                   <small className="text-success fw-bold">
-                    🎉 You saved ₹{discount.toFixed(2)}!
+                    🎉 You saved ₹{safeDiscount.toFixed(2)}!
                   </small>
                 </div>
               )}

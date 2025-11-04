@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import bannerService from '../../../services/bannerService';
+import useAutoRefresh from '../../../hooks/useAutoRefresh';
 
 const BannerManagement = () => {
   const [banners, setBanners] = useState([]);
@@ -13,6 +14,7 @@ const BannerManagement = () => {
     linkUrl: '',
     type: 'promotion',
     status: 'active',
+    position: 0,
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   });
@@ -22,7 +24,7 @@ const BannerManagement = () => {
     loadBanners();
   }, []);
 
-  const loadBanners = async () => {
+  const loadBanners = useCallback(async () => {
     try {
       const allBanners = await bannerService.getAllBanners();
       setBanners(Array.isArray(allBanners) ? allBanners : []);
@@ -30,7 +32,10 @@ const BannerManagement = () => {
       console.error('Error loading banners:', error);
       setBanners([]);
     }
-  };
+  }, []);
+
+  // Enable auto-refresh every 20 seconds
+  useAutoRefresh(loadBanners, 20000, true);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -54,78 +59,102 @@ const BannerManagement = () => {
     }
   };
 
-  const handleAddBanner = (e) => {
+  const handleAddBanner = async (e) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.image) {
       alert('Title and image are required');
       return;
     }
     
-    bannerService.createBanner(formData);
-    setFormData({
-      title: '',
-      description: '',
-      image: '',
-      linkUrl: '',
-      type: 'promotion',
-      status: 'active',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    });
-    setShowAddModal(false);
-    loadBanners();
+    try {
+      await bannerService.createBanner(formData);
+      alert('Banner created successfully!');
+      setFormData({
+        title: '',
+        description: '',
+        image: '',
+        linkUrl: '',
+        type: 'promotion',
+        status: 'active',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      });
+      setShowAddModal(false);
+      loadBanners();
+    } catch (error) {
+      console.error('Error creating banner:', error);
+      alert('Failed to create banner. Please try again.');
+    }
   };
 
   const handleEditBanner = (banner) => {
     setEditingBanner(banner);
     setFormData({
-      title: banner.title,
-      description: banner.description,
-      image: banner.image,
-      linkUrl: banner.linkUrl,
-      type: banner.type,
-      status: banner.status,
-      startDate: banner.startDate,
-      endDate: banner.endDate
+      title: banner.title || '',
+      description: banner.subtitle || '',
+      image: banner.image_url || '',
+      linkUrl: banner.link_url || '',
+      type: banner.type || 'promotion',
+      status: banner.status || 'active',
+      position: banner.display_order || 0,
+      startDate: banner.start_date ? new Date(banner.start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      endDate: banner.end_date ? new Date(banner.end_date).toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     });
     setShowEditModal(true);
   };
 
-  const handleUpdateBanner = (e) => {
+  const handleUpdateBanner = async (e) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.image) {
       alert('Title and image are required');
       return;
     }
     
-    bannerService.updateBanner(editingBanner.id, formData);
-    setFormData({
-      title: '',
-      description: '',
-      image: '',
-      linkUrl: '',
-      type: 'promotion',
-      status: 'active',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    });
-    setShowEditModal(false);
-    setEditingBanner(null);
-    loadBanners();
-  };
-
-  const handleDeleteBanner = (bannerId) => {
-    if (window.confirm('Are you sure you want to delete this banner?')) {
-      bannerService.deleteBanner(bannerId);
+    try {
+      await bannerService.updateBanner(editingBanner.id, formData);
+      alert('Banner updated successfully!');
+      setFormData({
+        title: '',
+        description: '',
+        image: '',
+        linkUrl: '',
+        type: 'promotion',
+        status: 'active',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      });
+      setShowEditModal(false);
+      setEditingBanner(null);
       loadBanners();
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      alert('Failed to update banner. Please try again.');
     }
   };
 
-  const toggleBannerStatus = (bannerId) => {
+  const handleDeleteBanner = async (bannerId) => {
+    if (window.confirm('Are you sure you want to delete this banner?')) {
+      try {
+        await bannerService.deleteBanner(bannerId);
+        alert('Banner deleted successfully!');
+        loadBanners();
+      } catch (error) {
+        console.error('Error deleting banner:', error);
+        alert('Failed to delete banner. Please try again.');
+      }
+    }
+  };
+
+  const toggleBannerStatus = async (bannerId) => {
     const banner = banners.find(b => b.id === bannerId);
     const newStatus = banner.status === 'active' ? 'inactive' : 'active';
-    bannerService.updateBanner(bannerId, { status: newStatus });
-    loadBanners();
+    try {
+      await bannerService.updateBanner(bannerId, { status: newStatus });
+      loadBanners();
+    } catch (error) {
+      console.error('Error updating banner status:', error);
+      alert('Failed to update banner status. Please try again.');
+    }
   };
 
   const getBannerTypeColor = (type) => {
@@ -209,7 +238,7 @@ const BannerManagement = () => {
                         </td>
                         <td>
                           <div className="fw-bold">{banner.title}</div>
-                          <div className="text-muted small">{banner.description}</div>
+                          <div className="text-muted small">{banner.subtitle}</div>
                         </td>
                         <td>
                           <span className={`badge ${getBannerTypeColor(banner.type || 'home')}`}>
@@ -218,10 +247,10 @@ const BannerManagement = () => {
                         </td>
                         <td>
                           <div className="small">
-                            <div>Start: {banner.startDate ? new Date(banner.startDate).toLocaleDateString() : 'N/A'}</div>
-                            <div>End: {banner.endDate ? new Date(banner.endDate).toLocaleDateString() : 'N/A'}</div>
-                            {banner.endDate && isExpired(banner.endDate) && <span className="badge bg-danger">Expired</span>}
-                            {banner.startDate && isUpcoming(banner.startDate) && <span className="badge bg-info">Upcoming</span>}
+                            <div>Start: {banner.start_date ? new Date(banner.start_date).toLocaleDateString() : 'N/A'}</div>
+                            <div>End: {banner.end_date ? new Date(banner.end_date).toLocaleDateString() : 'N/A'}</div>
+                            {banner.end_date && isExpired(banner.end_date) && <span className="badge bg-danger">Expired</span>}
+                            {banner.start_date && isUpcoming(banner.start_date) && <span className="badge bg-info">Upcoming</span>}
                           </div>
                         </td>
                         <td>
@@ -234,7 +263,7 @@ const BannerManagement = () => {
                           </span>
                         </td>
                         <td>
-                          <span className="badge bg-primary">#{banner.position || 1}</span>
+                          <span className="badge bg-primary">#{banner.display_order || 0}</span>
                         </td>
                         <td>
                           <div className="btn-group">
@@ -423,6 +452,19 @@ const BannerManagement = () => {
                           <option value="inactive">Inactive</option>
                         </select>
                       </div>
+                      <div className="mb-3">
+                        <label className="form-label">Display Order (Position)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          name="position"
+                          value={formData.position}
+                          onChange={handleInputChange}
+                          min="0"
+                          placeholder="0"
+                        />
+                        <small className="form-text text-muted">Lower numbers appear first (0, 1, 2, ...)</small>
+                      </div>
                     </div>
                   </div>
 
@@ -607,6 +649,19 @@ const BannerManagement = () => {
                           <option value="active">Active</option>
                           <option value="inactive">Inactive</option>
                         </select>
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Display Order (Position)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          name="position"
+                          value={formData.position}
+                          onChange={handleInputChange}
+                          min="0"
+                          placeholder="0"
+                        />
+                        <small className="form-text text-muted">Lower numbers appear first (0, 1, 2, ...)</small>
                       </div>
                     </div>
                   </div>

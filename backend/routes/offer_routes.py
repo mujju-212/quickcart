@@ -5,6 +5,7 @@ Offer Routes - Handles promotional offers and discount codes
 from flask import Blueprint, request, jsonify
 from datetime import datetime, date
 from backend.utils.database import db
+from backend.utils.auth_middleware import admin_required
 
 offer_bp = Blueprint('offers', __name__)
 
@@ -16,7 +17,7 @@ def get_all_offers():
             SELECT id, title, description, code, discount_type, discount_value,
                    min_order_value, max_discount_amount, image_url, status,
                    start_date, end_date, usage_limit, used_count,
-                   applicable_categories, offer_type, created_at
+                   applicable_categories, applicable_products, offer_type, created_at
             FROM offers
             ORDER BY created_at DESC
         """
@@ -148,7 +149,12 @@ def validate_offer(code):
                 'id': offer['id'],
                 'title': offer['title'],
                 'code': offer['code'],
-                'discount_type': offer['discount_type']
+                'discount_type': offer['discount_type'],
+                'discount_value': float(offer['discount_value']),
+                'min_order_value': float(offer['min_order_value']),
+                'max_discount_amount': float(offer['max_discount_amount']) if offer['max_discount_amount'] else None,
+                'start_date': offer['start_date'].isoformat(),
+                'end_date': offer['end_date'].isoformat()
             },
             'message': f"Offer applied successfully! You saved ₹{round(discount_amount, 2)}"
         }), 200
@@ -157,7 +163,8 @@ def validate_offer(code):
         return jsonify({'error': str(e)}), 500
 
 @offer_bp.route('', methods=['POST'])
-def create_offer():
+@admin_required
+def create_offer(current_user):
     """Create a new offer (admin only)"""
     try:
         data = request.json
@@ -165,8 +172,9 @@ def create_offer():
         query = """
             INSERT INTO offers (title, description, code, discount_type, discount_value,
                               min_order_value, max_discount_amount, image_url, status,
-                              start_date, end_date, usage_limit, offer_type, applicable_categories)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                              start_date, end_date, usage_limit, offer_type, 
+                              applicable_categories, applicable_products)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
         
@@ -184,15 +192,17 @@ def create_offer():
             data['end_date'],
             data.get('usage_limit', 1000),
             data.get('offer_type', 'general'),
-            data.get('applicable_categories', 'all')
-        ))
+            data.get('applicable_categories', 'all'),
+            data.get('applicable_products', 'all')
+        ), fetch=True)
         
         return jsonify({'message': 'Offer created successfully', 'id': result[0]['id']}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @offer_bp.route('/<int:offer_id>', methods=['PUT'])
-def update_offer(offer_id):
+@admin_required
+def update_offer(current_user, offer_id):
     """Update an existing offer (admin only)"""
     try:
         data = request.json
@@ -202,7 +212,8 @@ def update_offer(offer_id):
             SET title = %s, description = %s, code = %s, discount_type = %s,
                 discount_value = %s, min_order_value = %s, max_discount_amount = %s,
                 image_url = %s, status = %s, start_date = %s, end_date = %s,
-                usage_limit = %s, offer_type = %s, applicable_categories = %s
+                usage_limit = %s, offer_type = %s, applicable_categories = %s,
+                applicable_products = %s
             WHERE id = %s
         """
         
@@ -221,6 +232,7 @@ def update_offer(offer_id):
             data.get('usage_limit', 1000),
             data.get('offer_type', 'general'),
             data.get('applicable_categories', 'all'),
+            data.get('applicable_products', 'all'),
             offer_id
         ))
         
@@ -229,7 +241,8 @@ def update_offer(offer_id):
         return jsonify({'error': str(e)}), 500
 
 @offer_bp.route('/<int:offer_id>', methods=['DELETE'])
-def delete_offer(offer_id):
+@admin_required
+def delete_offer(current_user, offer_id):
     """Delete an offer (admin only)"""
     try:
         query = "DELETE FROM offers WHERE id = %s"

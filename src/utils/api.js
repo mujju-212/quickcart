@@ -6,7 +6,11 @@ import Cookies from 'js-cookie';
  * @returns {Object} Headers object with Authorization token if available
  */
 export const getAuthHeaders = () => {
-  const token = Cookies.get('auth_token');
+  // Try cookie first (preferred), then localStorage as fallback
+  const token = Cookies.get('auth_token') || 
+                localStorage.getItem('token') || 
+                localStorage.getItem('authToken');
+  
   const headers = {
     'Content-Type': 'application/json',
   };
@@ -40,9 +44,12 @@ export const secureFetch = async (url, options = {}) => {
     
     // 🔒 Handle unauthorized responses
     if (response.status === 401) {
-      // Token expired or invalid - clear auth data
+      // Token expired or invalid - clear auth data from BOTH locations
       Cookies.remove('auth_token');
       Cookies.remove('quickcart_user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUser');
       
       // Redirect to login if not already there
       if (!window.location.pathname.includes('/login')) {

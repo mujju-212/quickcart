@@ -10,6 +10,43 @@ const Orders = ({ orders }) => {
   const navigate = useNavigate();
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  console.log('📋 Orders component received:', orders);
+  console.log('Number of orders:', orders?.length);
+
+  // Helper function to get product image URL from product_id
+  const getProductImageById = (productId) => {
+    if (!productId) return getImagePlaceholder(60, 60, 'Item');
+    // This is a fallback - normally the image_url should be in the item object
+    return `${process.env.REACT_APP_API_URL}/static/images/products/${productId}.jpg`;
+  };
+
+  // Helper to get item image - handles both full product objects and item objects with just product_id
+  const getItemImage = (item) => {
+    console.log('🖼️ Getting image for item:', item);
+    
+    // First priority: use image_url from item (joined from products table)
+    if (item.image_url) {
+      console.log('✅ Found image_url:', item.image_url);
+      return item.image_url;
+    }
+    
+    // Second priority: If item has image field
+    if (item.image) {
+      console.log('✅ Found image field:', item.image);
+      return item.image;
+    }
+    
+    // Third priority: construct from product_id (fallback)
+    if (item.product_id) {
+      console.log('⚠️ Using fallback for product_id:', item.product_id);
+      return getProductImageById(item.product_id);
+    }
+    
+    // Last resort: placeholder
+    console.log('❌ No image found, using placeholder');
+    return getImagePlaceholder(60, 60, 'Item');
+  };
+
   const getStatusColor = (status) => {
     const statusLower = status?.toLowerCase() || 'pending';
     switch (statusLower) {
@@ -24,6 +61,8 @@ const Orders = ({ orders }) => {
 
   const generateInvoice = (order) => {
     const doc = new jsPDF();
+    
+    console.log('🧾 Generating invoice for order:', order);
     
     // Ensure autoTable is available
     if (typeof doc.autoTable === 'undefined') {
@@ -118,8 +157,8 @@ const Orders = ({ orders }) => {
     doc.text(`#${order.id}`, 168, 73);
     
     doc.text(`Order Date:`, 140, 78);
-    // Use order.created_at if available, otherwise use order.date
-    const orderDate = order.created_at || order.date;
+    // Use order.created_at or order.order_date
+    const orderDate = order.created_at || order.order_date;
     doc.text(`${new Date(orderDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, 168, 78);
     
     // ===== BILLING INFORMATION SECTION =====
@@ -139,9 +178,9 @@ const Orders = ({ orders }) => {
     
     doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
-    const customerName = order.customer || 'Guest User';
+    const customerName = order.user_name || order.customer || 'Guest User';
     const customerPhone = order.phone || 'N/A';
-    const customerAddress = order.address || 'N/A';
+    const customerAddress = order.delivery_address || order.address || 'N/A';
     
     doc.setFont(undefined, 'bold');
     doc.text(customerName, 18, billingStartY + 14);
@@ -189,10 +228,10 @@ const Orders = ({ orders }) => {
     // ===== ITEMS TABLE SECTION =====
     const tableData = order.items?.map((item, index) => [
       index + 1,
-      item.name || 'Product',
+      item.product_name || item.name || 'Product',
       Number(item.quantity) || 1,
-      `Rs ${(Number(item.price) || 0).toFixed(2)}`,
-      `Rs ${((Number(item.price) || 0) * (Number(item.quantity) || 1)).toFixed(2)}`
+      `Rs ${(Number(item.product_price || item.price) || 0).toFixed(2)}`,
+      `Rs ${((Number(item.product_price || item.price) || 0) * (Number(item.quantity) || 1)).toFixed(2)}`
     ]) || [];
     
     doc.autoTable({
@@ -371,17 +410,17 @@ const Orders = ({ orders }) => {
                       <Row className="align-items-center">
                         <Col md={2}>
                           <div className="d-flex align-items-center">
-                            {order.items && order.items[0] && (
-                              <img 
-                                src={getProductImage(order.items[0])}
-                                alt={order.items[0].name}
-                                style={{ width: '60px', height: '60px', objectFit: 'cover' }}
-                                className="rounded"
-                                onError={(e) => {
-                                  e.target.src = getImagePlaceholder(60, 60, 'Item');
-                                }}
-                              />
-                            )}
+                              {order.items && order.items.length > 0 && order.items[0].product_name && (
+                                <img 
+                                  src={getItemImage(order.items[0])}
+                                  alt={order.items[0].product_name}
+                                  style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                                  className="rounded me-3"
+                                  onError={(e) => {
+                                    e.target.src = getImagePlaceholder(50, 50, 'Item');
+                                  }}
+                                />
+                              )}
                             {order.items && order.items.length > 1 && (
                               <Badge 
                                 bg="secondary" 
@@ -397,7 +436,7 @@ const Orders = ({ orders }) => {
                           <div>
                             <h6 className="mb-1" style={{ fontSize: '0.95rem' }}>Order #{order.id}</h6>
                             <p className="text-muted small mb-0">
-                              {new Date(order.date).toLocaleDateString('en-IN', { 
+                              {new Date(order.created_at || order.order_date).toLocaleDateString('en-IN', { 
                                 day: '2-digit', 
                                 month: 'short', 
                                 year: 'numeric' 
@@ -485,14 +524,14 @@ const Orders = ({ orders }) => {
                     <div className="mb-3">
                       <small className="text-muted d-block">Order Date & Time</small>
                       <div className="fw-semibold">
-                        {new Date(selectedOrder.date).toLocaleDateString('en-IN', {
+                        {new Date(selectedOrder.created_at || selectedOrder.order_date).toLocaleDateString('en-IN', {
                           day: '2-digit',
                           month: 'short',
                           year: 'numeric'
                         })}
                       </div>
                       <small className="text-muted">
-                        {new Date(selectedOrder.date).toLocaleTimeString('en-IN', {
+                        {new Date(selectedOrder.created_at || selectedOrder.order_date).toLocaleTimeString('en-IN', {
                           hour: '2-digit',
                           minute: '2-digit',
                           hour12: true
@@ -556,8 +595,8 @@ const Orders = ({ orders }) => {
                   <div key={item.id || item.product_id || `item-${index}`} className="d-flex justify-content-between align-items-center py-3 border-bottom">
                     <div className="d-flex align-items-center flex-grow-1">
                       <img 
-                        src={getProductImage(item)} 
-                        alt={item.name}
+                        src={getItemImage(item)} 
+                        alt={item.product_name || item.name}
                         style={{ width: '60px', height: '60px', objectFit: 'cover' }}
                         className="rounded me-3"
                         onError={(e) => {
@@ -565,14 +604,14 @@ const Orders = ({ orders }) => {
                         }}
                       />
                       <div>
-                        <div className="fw-semibold">{item.name}</div>
+                        <div className="fw-semibold">{item.product_name || item.name}</div>
                         <div className="text-muted small">{item.size}</div>
                         <div className="text-muted small">Quantity: {item.quantity}</div>
                       </div>
                     </div>
                     <div className="text-end">
-                      <div className="fw-semibold">Rs{((Number(item.price) || 0) * (Number(item.quantity) || 1)).toFixed(2)}</div>
-                      <div className="text-muted small">Rs{(Number(item.price) || 0).toFixed(2)} each</div>
+                      <div className="fw-semibold">Rs{((Number(item.product_price || item.price) || 0) * (Number(item.quantity) || 1)).toFixed(2)}</div>
+                      <div className="text-muted small">Rs{(Number(item.product_price || item.price) || 0).toFixed(2)} each</div>
                     </div>
                   </div>
                 ))}

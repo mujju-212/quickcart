@@ -144,8 +144,8 @@
 
 .category-card:hover {
   transform: translateY(-3px) !important;
-  border-color: #ffe01b !important;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3) !important;
 }
 
 .category-icon {

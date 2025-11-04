@@ -24,7 +24,13 @@ const ProductsList = ({ onAddProduct, onEditProduct }) => {
           <p className="text-muted">Manage your store products</p>
         </div>
         <Button 
-          style={{ backgroundColor: '#ffd60a', border: 'none', color: '#333', fontWeight: 'bold' }}
+          style={{ 
+            background: 'linear-gradient(135deg, #ffd700 0%, #f4c430 100%)', 
+            border: 'none', 
+            color: '#1a1a1a', 
+            fontWeight: 'bold',
+            boxShadow: '0 4px 15px rgba(255, 215, 0, 0.3)'
+          }}
           onClick={onAddProduct}
         >
           <FaPlus className="me-2" />

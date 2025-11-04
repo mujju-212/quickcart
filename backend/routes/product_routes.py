@@ -14,6 +14,7 @@ def get_all_products():
         category = request.args.get('category')
         search = request.args.get('search')
         limit = request.args.get('limit', type=int)
+        include_out_of_stock = request.args.get('include_out_of_stock', 'false').lower() == 'true'
         
         query = """
             SELECT p.*, c.name as category_name 
@@ -22,6 +23,10 @@ def get_all_products():
             WHERE p.status = 'active'
         """
         params = []
+        
+        # By default, exclude out-of-stock products for customers
+        if not include_out_of_stock:
+            query += " AND p.stock > 0"
         
         if category:
             query += " AND (p.category_name = %s OR c.name = %s)"
@@ -113,23 +118,41 @@ def create_product(current_user):
         
         # 🔒 Validate product data
         name = InputValidator.sanitize_string(data['name'], max_length=200)
-        category_name = InputValidator.sanitize_string(data['category_name'], max_length=100)
+        # Don't sanitize category_name yet - we need the raw value for lookup
+        category_name_raw = data['category_name']
         description = InputValidator.sanitize_string(data.get('description', ''), max_length=1000)
         
         # Validate price
-        price_validation = InputValidator.validate_price(data['price'])
-        if not price_validation['valid']:
-            return jsonify({"success": False, "error": price_validation['error']}), 400
+        price_valid, validated_price, price_error = InputValidator.validate_price(data['price'])
+        if not price_valid:
+            return jsonify({"success": False, "error": price_error}), 400
         
-        # Validate stock
-        stock_validation = InputValidator.validate_quantity(data['stock'])
-        if not stock_validation['valid']:
-            return jsonify({"success": False, "error": stock_validation['error']}), 400
+        # Validate stock (simpler validation for product stock, not cart quantity)
+        try:
+            validated_stock = int(data['stock'])
+            if validated_stock < 0:
+                return jsonify({"success": False, "error": "Stock cannot be negative"}), 400
+            if validated_stock > 100000:
+                return jsonify({"success": False, "error": "Stock exceeds maximum limit"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid stock value"}), 400
         
-        # Get category ID from name
-        category_query = "SELECT id FROM categories WHERE name = %s"
-        category = db.execute_query_one(category_query, (category_name,))
-        category_id = category['id'] if category else None
+        # Get category ID from name (use raw value for lookup)
+        category_query = "SELECT id, name FROM categories WHERE name = %s"
+        category_result = db.execute_query(category_query, (category_name_raw,), fetch=True)
+        category_id = category_result[0]['id'] if category_result and len(category_result) > 0 else None
+        category_name = category_result[0]['name'] if category_result and len(category_result) > 0 else category_name_raw
+        
+        if not category_id:
+            return jsonify({"success": False, "error": f"Category '{category_name_raw}' not found"}), 400
+        
+        # Validate original_price if provided
+        if 'original_price' in data:
+            original_price_valid, validated_original_price, original_price_error = InputValidator.validate_price(data['original_price'])
+            if not original_price_valid:
+                return jsonify({"success": False, "error": f"Original price error: {original_price_error}"}), 400
+        else:
+            validated_original_price = validated_price
         
         query = """
             INSERT INTO products (name, category_id, category_name, price, original_price, 
@@ -142,10 +165,10 @@ def create_product(current_user):
             name,
             category_id,
             category_name,
-            float(data['price']),
-            float(data.get('original_price', data['price'])),
+            validated_price,
+            validated_original_price,
             data['size'],
-            int(data['stock']),
+            validated_stock,
             data.get('image_url', ''),
             description
         )
@@ -172,7 +195,9 @@ def create_product(current_user):
         
     except Exception as e:
         logger.error(f"❌ Error creating product: {e}")
-        return jsonify({"success": False, "error": "Failed to create product"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": f"Failed to create product: {str(e)}"}), 500
 
 @product_bp.route('/<int:product_id>', methods=['PUT'])
 @admin_required
@@ -182,6 +207,10 @@ def update_product(current_user, product_id):
     """
     try:
         data = request.get_json()
+        
+        # Debug logging
+        logger.info(f"🔄 Updating product {product_id}")
+        logger.info(f"📦 Received data: {data}")
         
         # Build dynamic update query
         update_fields = []
@@ -197,15 +226,24 @@ def update_product(current_user, product_id):
                     value = InputValidator.sanitize_string(data[field], max_length=1000)
                 # Validate numeric fields
                 elif field in ['price', 'original_price']:
-                    price_val = InputValidator.validate_price(data[field])
-                    if not price_val['valid']:
-                        return jsonify({"success": False, "error": price_val['error']}), 400
-                    value = float(data[field])
+                    logger.info(f"💰 Validating {field}: {data[field]} (type: {type(data[field])})")
+                    price_valid, validated_price_val, price_error = InputValidator.validate_price(data[field])
+                    if not price_valid:
+                        logger.error(f"❌ Price validation failed for {field}: {price_error}")
+                        return jsonify({"success": False, "error": f"{field}: {price_error}"}), 400
+                    value = validated_price_val
+                    logger.info(f"✅ {field} validated: {value}")
                 elif field == 'stock':
-                    stock_val = InputValidator.validate_quantity(data[field])
-                    if not stock_val['valid']:
-                        return jsonify({"success": False, "error": stock_val['error']}), 400
-                    value = int(data[field])
+                    # Validate stock (for product stock, not cart quantity - allow larger values)
+                    try:
+                        value = int(data[field])
+                        if value < 0:
+                            return jsonify({"success": False, "error": "Stock cannot be negative"}), 400
+                        if value > 100000:
+                            return jsonify({"success": False, "error": "Stock exceeds maximum limit"}), 400
+                    except (ValueError, TypeError):
+                        logger.error(f"❌ Invalid stock value: {data[field]}")
+                        return jsonify({"success": False, "error": f"Invalid stock value: {data[field]}"}), 400
                 else:
                     value = data[field]
                 
@@ -213,15 +251,23 @@ def update_product(current_user, product_id):
                 params.append(value)
         
         if not update_fields:
+            logger.error("❌ No valid fields to update")
             return jsonify({"success": False, "error": "No valid fields to update"}), 400
         
         # Update category_id if category_name changed
         if 'category_name' in data:
+            logger.info(f"🏷️ Looking up category: {data['category_name']}")
             category_query = "SELECT id FROM categories WHERE name = %s"
-            category = db.execute_query_one(category_query, (InputValidator.sanitize_string(data['category_name']),))
-            if category:
+            # Don't sanitize for lookup - use the raw value to match database
+            category_result = db.execute_query(category_query, (data['category_name'],), fetch=True)
+            logger.info(f"🏷️ Category query result: {category_result}")
+            if category_result and len(category_result) > 0:
                 update_fields.append("category_id = %s")
-                params.append(category['id'])
+                params.append(category_result[0]['id'])
+                logger.info(f"✅ Category ID: {category_result[0]['id']}")
+            else:
+                logger.error(f"❌ Category not found: {data['category_name']}")
+                return jsonify({"success": False, "error": f"Category '{data['category_name']}' not found"}), 400
         
         params.append(product_id)
         
@@ -231,6 +277,9 @@ def update_product(current_user, product_id):
             WHERE id = %s
             RETURNING *
         """
+        
+        logger.info(f"🔧 SQL Query: {query}")
+        logger.info(f"🔧 SQL Params: {params}")
         
         result = db.execute_query(query, params, fetch=True)
         
@@ -247,7 +296,9 @@ def update_product(current_user, product_id):
         
     except Exception as e:
         logger.error(f"Error updating product {product_id}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": f"Failed to update product: {str(e)}"}), 500
 
 @product_bp.route('/<int:product_id>', methods=['DELETE'])
 @admin_required

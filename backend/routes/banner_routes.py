@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from utils.database import db
+from utils.auth_middleware import admin_required
 import logging
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,8 @@ def get_banner_by_id(banner_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @banner_bp.route('/', methods=['POST'])
-def create_banner():
+@admin_required
+def create_banner(current_user):
     """Create a new banner (Admin only)"""
     try:
         data = request.get_json()
@@ -109,30 +111,46 @@ def create_banner():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @banner_bp.route('/<int:banner_id>', methods=['PUT'])
-def update_banner(banner_id):
+@admin_required
+def update_banner(current_user, banner_id):
     """Update a banner (Admin only)"""
     try:
         data = request.get_json()
         
-        query = """
+        # Build dynamic update query to only update provided fields
+        update_fields = []
+        params = []
+        
+        field_mapping = {
+            'title': 'title',
+            'subtitle': 'subtitle',
+            'image_url': 'image_url',
+            'link_url': 'link_url',
+            'status': 'status',
+            'display_order': 'display_order',
+            'start_date': 'start_date',
+            'end_date': 'end_date'
+        }
+        
+        for field_key, db_column in field_mapping.items():
+            if field_key in data:
+                # Skip empty optional fields
+                if field_key in ['link_url', 'subtitle'] and not data[field_key]:
+                    continue
+                update_fields.append(f"{db_column} = %s")
+                params.append(data[field_key])
+        
+        if not update_fields:
+            return jsonify({"success": False, "error": "No fields to update"}), 400
+        
+        params.append(banner_id)
+        
+        query = f"""
             UPDATE banners 
-            SET title = %s, subtitle = %s, image_url = %s, link_url = %s, 
-                status = %s, display_order = %s, start_date = %s, end_date = %s
+            SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
             RETURNING *
         """
-        
-        params = (
-            data.get('title', ''),
-            data.get('subtitle', ''),
-            data.get('image_url', ''),
-            data.get('link_url', ''),
-            data.get('status', 'active'),
-            data.get('display_order', 0),
-            data.get('start_date'),
-            data.get('end_date'),
-            banner_id
-        )
         
         result = db.execute_query(query, params, fetch=True)
         
@@ -150,7 +168,8 @@ def update_banner(banner_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @banner_bp.route('/<int:banner_id>', methods=['DELETE'])
-def delete_banner(banner_id):
+@admin_required
+def delete_banner(current_user, banner_id):
     """Delete a banner (Admin only)"""
     try:
         query = "DELETE FROM banners WHERE id = %s RETURNING id"

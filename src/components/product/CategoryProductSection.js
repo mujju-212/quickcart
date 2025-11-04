@@ -1,17 +1,30 @@
-import React from 'react';
-import { Row, Col, Button } from 'react-bootstrap';
+import React, { useRef } from 'react';
+import { Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from './ProductCard';
+import './CategoryProductSection.css';
 
 const CategoryProductSection = ({ 
   categoryName, 
   products, 
   showSeeAll = true, 
-  maxProducts = 6,
+  maxProducts = 12,
   className = "",
   loading = false
 }) => {
   const navigate = useNavigate();
+  const scrollContainerRef = useRef(null);
+
+  const scroll = (direction) => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 300;
+      const newScrollPosition = scrollContainerRef.current.scrollLeft + (direction === 'left' ? -scrollAmount : scrollAmount);
+      scrollContainerRef.current.scrollTo({
+        left: newScrollPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -21,22 +34,24 @@ const CategoryProductSection = ({
             {categoryName}
           </h2>
         </div>
-        <Row className="g-3">
-          {[...Array(maxProducts)].map((_, index) => (
-            <Col key={index} xs={6} sm={4} md={3} lg={2}>
-              <div className="card border-0 shadow-sm">
-                <div className="card-body p-3">
-                  <div className="placeholder-glow">
-                    <div className="placeholder bg-light rounded" style={{ height: '120px', width: '100%' }}></div>
-                    <div className="placeholder col-8 mt-2"></div>
-                    <div className="placeholder col-6 mt-1"></div>
-                    <div className="placeholder col-4 mt-2"></div>
+        <div className="horizontal-scroll-container">
+          <div className="products-scroll-wrapper" ref={scrollContainerRef}>
+            {[...Array(maxProducts)].map((_, index) => (
+              <div key={index} className="product-scroll-item">
+                <div className="card border-0 shadow-sm">
+                  <div className="card-body p-3">
+                    <div className="placeholder-glow">
+                      <div className="placeholder bg-light rounded" style={{ height: '120px', width: '100%' }}></div>
+                      <div className="placeholder col-8 mt-2"></div>
+                      <div className="placeholder col-6 mt-1"></div>
+                      <div className="placeholder col-4 mt-2"></div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </Col>
-          ))}
-        </Row>
+            ))}
+          </div>
+        </div>
       </section>
     );
   }
@@ -68,13 +83,35 @@ const CategoryProductSection = ({
         )}
       </div>
       
-      <Row className="g-3">
-        {displayProducts.map((product, index) => (
-          <Col key={product.id} xs={6} sm={4} md={3} lg={2}>
-            <ProductCard product={product} />
-          </Col>
-        ))}
-      </Row>
+      <div className="horizontal-scroll-container">
+        {displayProducts.length > 6 && (
+          <button 
+            className="scroll-btn scroll-btn-left"
+            onClick={() => scroll('left')}
+            aria-label="Scroll left"
+          >
+            <i className="fas fa-chevron-left"></i>
+          </button>
+        )}
+        
+        <div className="products-scroll-wrapper" ref={scrollContainerRef}>
+          {displayProducts.map((product) => (
+            <div key={product.id} className="product-scroll-item">
+              <ProductCard product={product} />
+            </div>
+          ))}
+        </div>
+        
+        {displayProducts.length > 6 && (
+          <button 
+            className="scroll-btn scroll-btn-right"
+            onClick={() => scroll('right')}
+            aria-label="Scroll right"
+          >
+            <i className="fas fa-chevron-right"></i>
+          </button>
+        )}
+      </div>
     </section>
   );
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Nav } from 'react-bootstrap';
-import { FaTachometerAlt, FaTags, FaBoxes, FaPercent, FaImage, FaUsers, FaShoppingCart } from 'react-icons/fa';
+import { FaTachometerAlt, FaTags, FaBoxes, FaPercent, FaImage, FaUsers, FaShoppingCart, FaCog } from 'react-icons/fa';
 
 const AdminSidebar = ({ activeTab, setActiveTab }) => {
   const menuItems = [
@@ -10,11 +10,12 @@ const AdminSidebar = ({ activeTab, setActiveTab }) => {
     { key: 'products', label: 'Products', icon: FaBoxes },
     { key: 'offers', label: 'Offers', icon: FaPercent },
     { key: 'banners', label: 'Banners', icon: FaImage },
-    { key: 'users', label: 'Users', icon: FaUsers }
+    { key: 'users', label: 'Users', icon: FaUsers },
+    { key: 'settings', label: 'Settings', icon: FaCog }
   ];
 
   return (
-    <Card className="shadow-sm border-0 sticky-top" style={{ borderRadius: '15px', top: '20px' }}>
+    <Card className="shadow-sm border-0 sticky-top" style={{ borderRadius: '15px', top: '80px', zIndex: 100 }}>
       <Card.Body className="p-3">
         <Nav variant="pills" className="flex-column">
           {menuItems.map((item) => {

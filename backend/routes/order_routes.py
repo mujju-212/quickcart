@@ -5,10 +5,17 @@ from utils.input_validator import InputValidator
 from utils.rate_limiter import RateLimiter
 import logging
 import datetime
+from datetime import timezone, timedelta
 import secrets
 
 logger = logging.getLogger(__name__)
 order_bp = Blueprint('orders', __name__)
+
+def get_ist_time():
+    """Get current time in IST (Indian Standard Time)"""
+    ist_offset = timedelta(hours=5, minutes=30)
+    ist_tz = timezone(ist_offset)
+    return datetime.datetime.now(ist_tz)
 
 def generate_order_id():
     """Generate unique order ID"""
@@ -21,18 +28,32 @@ def calculate_order_total(items, delivery_fee=29, handling_fee=5, coupon=None):
     🔒 SECURITY: Backend price calculation to prevent manipulation
     """
     subtotal = 0
+    order_items = []
     
     for item in items:
         # Get current product price from database
-        product_query = "SELECT price FROM products WHERE id = %s AND status = 'active'"
+        product_query = "SELECT id, name, price FROM products WHERE id = %s AND status = 'active'"
         product = db.execute_query_one(product_query, (item['product_id'],))
         
         if not product:
-            raise ValueError(f"Product {item['product_id']} not found")
+            return {
+                'success': False,
+                'error': f"Product {item['product_id']} not found or inactive"
+            }
         
         # Use database price, NOT client-provided price
-        item_total = float(product['price']) * int(item['quantity'])
+        quantity = int(item['quantity'])
+        item_total = float(product['price']) * quantity
         subtotal += item_total
+        
+        # Store item data for order_items table
+        order_items.append({
+            'product_id': product['id'],
+            'product_name': product['name'],
+            'product_price': float(product['price']),
+            'quantity': quantity,
+            'total_price': item_total
+        })
     
     # Calculate delivery fee (free if >= 99)
     final_delivery_fee = 0 if subtotal >= 99 else delivery_fee
@@ -67,11 +88,13 @@ def calculate_order_total(items, delivery_fee=29, handling_fee=5, coupon=None):
     total = subtotal - discount + final_delivery_fee + handling_fee
     
     return {
+        'success': True,
         'subtotal': round(subtotal, 2),
         'discount': round(discount, 2),
         'delivery_fee': round(final_delivery_fee, 2),
         'handling_fee': round(handling_fee, 2),
-        'total': round(total, 2)
+        'total': round(total, 2),
+        'items': order_items
     }
 
 @order_bp.route('/', methods=['GET'])
@@ -87,33 +110,42 @@ def get_user_orders(current_user):
         
         query = """
             SELECT o.*, 
-                   COUNT(oi.id) as items_count,
-                   JSON_AGG(
-                       JSON_BUILD_OBJECT(
-                           'product_name', oi.product_name,
-                           'quantity', oi.quantity,
-                           'price', oi.product_price
+                   (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as items_count,
+                   COALESCE(
+                       (SELECT JSON_AGG(
+                           JSON_BUILD_OBJECT(
+                               'product_name', oi.product_name,
+                               'quantity', oi.quantity,
+                               'price', oi.product_price,
+                               'product_id', oi.product_id,
+                               'total_price', oi.total_price,
+                               'image_url', p.image_url
+                           )
                        )
-                   ) as items
+                       FROM order_items oi
+                       LEFT JOIN products p ON p.id = oi.product_id
+                       WHERE oi.order_id = o.id),
+                       '[]'::json
+                   ) as items,
+                   COALESCE(
+                       (SELECT JSON_AGG(
+                           JSON_BUILD_OBJECT(
+                               'status', ot.status,
+                               'timestamp', ot.timestamp,
+                               'completed', ot.completed,
+                               'notes', ot.notes
+                           ) ORDER BY ot.timestamp ASC
+                       )
+                       FROM order_timeline ot
+                       WHERE ot.order_id = o.id),
+                       '[]'::json
+                   ) as timeline
             FROM orders o
-            LEFT JOIN order_items oi ON o.id = oi.order_id
             WHERE o.user_id = %s
-            GROUP BY o.id
             ORDER BY o.created_at DESC
         """
         
         orders = db.execute_query(query, (user_id,), fetch=True)
-        
-        # Get timeline for each order
-        for order in orders:
-            timeline_query = """
-                SELECT status, timestamp, completed, notes 
-                FROM order_timeline 
-                WHERE order_id = %s 
-                ORDER BY timestamp ASC
-            """
-            timeline = db.execute_query(timeline_query, (order['id'],), fetch=True)
-            order['timeline'] = [dict(t) for t in timeline] if timeline else []
         
         return jsonify({
             "success": True,
@@ -156,6 +188,8 @@ def get_order_by_id(current_user, order_id):
             return jsonify({"success": False, "error": "Order not found"}), 404
         
         # 🔒 SECURITY: Verify order ownership (users can only see their own orders, admins can see all)
+        logger.info(f"🔍 Order access check - User ID: {current_user.get('id')}, Role: {current_user.get('role')}, is_admin: {current_user.get('is_admin')}")
+        
         if not current_user.get('is_admin'):
             if order.get('user_id') != current_user['id']:
                 logger.warning(f"❌ User {current_user['id']} attempted to access order {order_id} belonging to user {order.get('user_id')}")
@@ -191,20 +225,24 @@ def create_order(current_user):
         data = request.get_json()
         
         # 🔒 Validate order data
-        validation_result = InputValidator.validate_order_data(data)
-        if not validation_result['valid']:
-            return jsonify({"success": False, "error": validation_result['error']}), 400
+        is_valid, validation_errors = InputValidator.validate_order_data(data)
+        if not is_valid:
+            error_msg = '; '.join([f"{k}: {v}" for k, v in validation_errors.items()])
+            return jsonify({"success": False, "error": error_msg}), 400
         
         # 🔒 SECURITY: Use authenticated user's phone instead of client-provided
-        phone = current_user['phone']
-        user_id = current_user['id']
+        phone = current_user.get('phone')
+        user_id = current_user.get('id') or current_user.get('user_id')
         user_name = current_user.get('name', 'User')
         
-        # 🔒 Validate delivery address
-        if 'delivery_address' in data:
-            address_validation = InputValidator.validate_address(data['delivery_address'])
-            if not address_validation['valid']:
-                return jsonify({"success": False, "error": f"Invalid address: {address_validation['error']}"}), 400
+        if not phone or not user_id:
+            logger.error(f"❌ Invalid token - missing phone or user_id: {current_user}")
+            return jsonify({"success": False, "error": "Invalid authentication token. Please log in again."}), 401
+        
+        # Delivery address is sent as a string from frontend, just validate it's not empty
+        delivery_address = data.get('delivery_address', '').strip()
+        if not delivery_address or len(delivery_address) < 10:
+            return jsonify({"success": False, "error": "Delivery address is required (minimum 10 characters)"}), 400
         
         # 🔒 Calculate totals from DATABASE (prevent price manipulation)
         items = data.get('items', [])
@@ -240,11 +278,16 @@ def create_order(current_user):
         
         order_id = generate_order_id()
         
-        # Create order
+        # Get current timestamp in IST (India Standard Time)
+        current_time_ist = get_ist_time()
+        
+        print(f"🕐 Creating order at IST time: {current_time_ist}")
+        
+        # Create order with explicit timestamp
         order_query = """
             INSERT INTO orders (id, user_id, phone, user_name, total, subtotal, delivery_fee,
-                              status, payment_status, payment_method, delivery_address, discount)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending', %s, %s, %s, %s)
+                              status, payment_status, payment_method, delivery_address, created_at, order_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending', %s, %s, %s, %s, %s)
             RETURNING *
         """
         
@@ -253,13 +296,17 @@ def create_order(current_user):
             data.get('payment_status', 'pending'),
             data.get('payment_method', 'cash'),
             data.get('delivery_address', ''),
-            discount
+            current_time_ist,  # created_at with IST time
+            current_time_ist.date()  # order_date
         )
         
         order_result = db.execute_query(order_query, order_params, fetch=True)
         
         if not order_result:
             return jsonify({"success": False, "error": "Failed to create order"}), 500
+        
+        # Get the order data - it's a list of RealDictRow objects
+        created_order = order_result[0]
         
         # Insert order items and update stock
         for item in order_items:
@@ -281,16 +328,16 @@ def create_order(current_user):
         # Mark coupon as used if applicable
         if coupon_code and discount > 0:
             db.execute_query(
-                "UPDATE coupons SET used_count = used_count + 1 WHERE code = %s",
+                "UPDATE offers SET used_count = used_count + 1 WHERE code = %s",
                 (coupon_code,)
             )
         
-        # Create initial timeline entry
+        # Create initial timeline entry with IST timestamp
         timeline_query = """
-            INSERT INTO order_timeline (order_id, status, completed)
-            VALUES (%s, 'Order Placed', true)
+            INSERT INTO order_timeline (order_id, status, completed, timestamp)
+            VALUES (%s, 'Order Placed', true, %s)
         """
-        db.execute_query(timeline_query, (order_id,))
+        db.execute_query(timeline_query, (order_id, current_time_ist))
         
         # Clear user's cart after successful order
         db.execute_query("DELETE FROM cart_items WHERE user_id = %s", (user_id,))
@@ -299,18 +346,35 @@ def create_order(current_user):
         
         return jsonify({
             "success": True,
-            "order": dict(order_result[0]),
+            "order": {
+                "id": created_order['id'],
+                "user_id": created_order['user_id'],
+                "phone": created_order['phone'],
+                "user_name": created_order['user_name'],
+                "total": float(created_order['total']),
+                "subtotal": float(created_order['subtotal']),
+                "delivery_fee": float(created_order['delivery_fee']),
+                "status": created_order['status'],
+                "payment_status": created_order['payment_status'],
+                "payment_method": created_order['payment_method'],
+                "delivery_address": created_order.get('delivery_address', ''),
+                "created_at": created_order['created_at'].isoformat() if hasattr(created_order['created_at'], 'isoformat') else str(created_order['created_at'])
+            },
             "items": order_items,
             "message": "Order created successfully"
         }), 201
         
     except Exception as e:
+        import traceback
         logger.error(f"❌ Error creating order: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        print(f"❌ ERROR creating order: {e}")
+        print(f"Traceback:\n{traceback.format_exc()}")
         return jsonify({"success": False, "error": "Failed to create order"}), 500
 
 @order_bp.route('/<order_id>/status', methods=['PUT'])
 @admin_required
-def update_order_status(current_user, order_id):
+def update_order_status(admin_user, order_id):
     """
     🔒 SECURED: Update order status (Admin only)
     """
@@ -344,31 +408,17 @@ def update_order_status(current_user, order_id):
         if not result:
             return jsonify({"success": False, "error": "Order not found"}), 404
         
-        # Add timeline entry
+        # Get IST timestamp for timeline
+        current_time_ist = get_ist_time()
+        
+        # Add timeline entry with IST timestamp
         timeline_query = """
-            INSERT INTO order_timeline (order_id, status, completed, notes)
-            VALUES (%s, %s, true, %s)
+            INSERT INTO order_timeline (order_id, status, completed, notes, timestamp)
+            VALUES (%s, %s, true, %s, %s)
         """
+        db.execute_query(timeline_query, (order_id, new_status, notes, current_time_ist))
         
-        status_messages = {
-            'confirmed': 'Order Confirmed',
-            'preparing': 'Preparing',
-            'out_for_delivery': 'Out for Delivery',
-            'delivered': 'Delivered',
-            'cancelled': 'Cancelled'
-        }
-        
-        status_message = status_messages.get(new_status, new_status.title())
-        db.execute_query(timeline_query, (order_id, status_message, notes))
-        
-        # If delivered, update actual delivery time
-        if new_status == 'delivered':
-            db.execute_query(
-                "UPDATE orders SET actual_delivery = CURRENT_TIMESTAMP WHERE id = %s",
-                (order_id,)
-            )
-        
-        logger.info(f"✅ Admin {current_user['id']} updated order {order_id} to {new_status}")
+        logger.info(f"✅ Admin {admin_user['id']} updated order {order_id} to {new_status}")
         
         return jsonify({
             "success": True,
@@ -379,6 +429,104 @@ def update_order_status(current_user, order_id):
     except Exception as e:
         logger.error(f"❌ Error updating order status: {e}")
         return jsonify({"success": False, "error": "Failed to update order status"}), 500
+
+@order_bp.route('/admin/all', methods=['GET'])
+@admin_required
+def get_all_orders_admin(admin_user):
+    """
+    🔒 SECURED: Get all orders for admin dashboard
+    """
+    try:
+        status_filter = request.args.get('status')
+        limit = request.args.get('limit', 1000, type=int)  # Increased default limit to 1000
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Base query - Fixed to handle orders without items
+        query = """
+            SELECT o.*, 
+                   (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as items_count,
+                   COALESCE(
+                       (SELECT JSON_AGG(
+                           JSON_BUILD_OBJECT(
+                               'product_name', oi.product_name,
+                               'quantity', oi.quantity,
+                               'price', oi.product_price,
+                               'total', oi.total_price,
+                               'product_id', oi.product_id
+                           )
+                       )
+                       FROM order_items oi
+                       WHERE oi.order_id = o.id),
+                       '[]'::json
+                   ) as items,
+                   COALESCE(
+                       (SELECT JSON_AGG(
+                           JSON_BUILD_OBJECT(
+                               'status', ot.status,
+                               'timestamp', ot.timestamp,
+                               'completed', ot.completed,
+                               'notes', ot.notes
+                           ) ORDER BY ot.timestamp
+                       )
+                       FROM order_timeline ot
+                       WHERE ot.order_id = o.id),
+                       '[]'::json
+                   ) as timeline
+            FROM orders o
+        """
+        
+        params = []
+        
+        # Add status filter if provided
+        if status_filter:
+            query += " WHERE o.status = %s"
+            params.append(status_filter)
+        
+        query += """
+            ORDER BY o.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        params.extend([limit, offset])
+        
+        orders = db.execute_query(query, tuple(params), fetch=True)
+        
+        # Get total count
+        count_query = "SELECT COUNT(*) as total FROM orders"
+        if status_filter:
+            count_query += " WHERE status = %s"
+            count_result = db.execute_query_one(count_query, (status_filter,))
+        else:
+            count_result = db.execute_query_one(count_query)
+        
+        total = count_result['total'] if count_result else 0
+        
+        orders_list = []
+        if orders:
+            for order in orders:
+                order_dict = dict(order)
+                # Parse items if it's a JSON string
+                if isinstance(order_dict.get('items'), str):
+                    import json
+                    order_dict['items'] = json.loads(order_dict['items'])
+                # Parse timeline if it's a JSON string
+                if isinstance(order_dict.get('timeline'), str):
+                    import json
+                    order_dict['timeline'] = json.loads(order_dict['timeline'])
+                orders_list.append(order_dict)
+        
+        logger.info(f"✅ Admin {admin_user['id']} fetched {len(orders_list)} orders")
+        
+        return jsonify({
+            "success": True,
+            "orders": orders_list,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching admin orders: {e}")
+        return jsonify({"success": False, "error": "Failed to fetch orders"}), 500
 
 @order_bp.route('/stats', methods=['GET'])
 def get_order_stats():

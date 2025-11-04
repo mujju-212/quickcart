@@ -274,8 +274,8 @@ class InputValidator:
             errors['total'] = "Order total must be greater than 0"
         
         # Payment method
-        payment = order_data.get('payment_method', '')
-        if payment not in ['cod', 'upi', 'card', 'netbanking']:
+        payment = order_data.get('payment_method', '').lower()
+        if payment not in ['cod', 'cash', 'upi', 'card', 'netbanking', 'online']:
             errors['payment_method'] = "Invalid payment method"
         
         return len(errors) == 0, errors

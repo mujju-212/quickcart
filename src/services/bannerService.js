@@ -54,71 +54,106 @@ class BannerService {
     }
   }
 
-  createBanner(bannerData) {
-    const banners = this.getAllBanners();
-    const newBanner = {
-      id: this.generateBannerId(),
-      ...bannerData,
-      position: banners.length + 1,
-      createdAt: new Date().toISOString()
-    };
-    
-    banners.push(newBanner);
-    localStorage.setItem('banners', JSON.stringify(banners));
-    return newBanner;
-  }
-
-  updateBanner(bannerId, updateData) {
-    const banners = this.getAllBanners();
-    const bannerIndex = banners.findIndex(banner => banner.id === bannerId);
-    
-    if (bannerIndex !== -1) {
-      banners[bannerIndex] = {
-        ...banners[bannerIndex],
-        ...updateData,
-        updatedAt: new Date().toISOString()
+  async createBanner(bannerData) {
+    try {
+      // Map frontend field names to backend field names
+      const payload = {
+        title: bannerData.title,
+        subtitle: bannerData.description || '',
+        image_url: bannerData.image,
+        link_url: bannerData.linkUrl || '',
+        status: bannerData.status || 'active',
+        display_order: bannerData.position || 0,
+        start_date: bannerData.startDate || null,
+        end_date: bannerData.endDate || null
       };
-      localStorage.setItem('banners', JSON.stringify(banners));
-      return banners[bannerIndex];
+
+      console.log('🎨 Creating banner via API:', payload);
+      const response = await this.makeRequest('/banners', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      console.log('✅ Banner created:', response);
+      return response.banner;
+    } catch (error) {
+      console.error('Error creating banner:', error);
+      throw error;
     }
-    
-    return null;
   }
 
-  deleteBanner(bannerId) {
-    const banners = this.getAllBanners();
-    const filteredBanners = banners.filter(banner => banner.id !== bannerId);
-    localStorage.setItem('banners', JSON.stringify(filteredBanners));
-    return true;
-  }
+  async updateBanner(bannerId, updateData) {
+    try {
+      // Map frontend field names to backend field names
+      const payload = {
+        title: updateData.title,
+        subtitle: updateData.description || '',
+        image_url: updateData.image,
+        link_url: updateData.linkUrl || '',
+        status: updateData.status || 'active',
+        display_order: updateData.position || 0,
+        start_date: updateData.startDate || null,
+        end_date: updateData.endDate || null
+      };
 
-  updateBannerPosition(bannerId, newPosition) {
-    const banners = this.getAllBanners();
-    const bannerIndex = banners.findIndex(banner => banner.id === bannerId);
-    
-    if (bannerIndex !== -1) {
-      banners[bannerIndex].position = newPosition;
-      localStorage.setItem('banners', JSON.stringify(banners));
-      return banners[bannerIndex];
+      console.log('🎨 Updating banner via API:', bannerId, payload);
+      const response = await this.makeRequest(`/banners/${bannerId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+
+      console.log('✅ Banner updated:', response);
+      return response.banner;
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      throw error;
     }
-    
-    return null;
   }
 
-  generateBannerId() {
-    return 'banner' + Date.now() + Math.random().toString(36).substr(2, 5);
+  async deleteBanner(bannerId) {
+    try {
+      console.log('🗑️ Deleting banner via API:', bannerId);
+      const response = await this.makeRequest(`/banners/${bannerId}`, {
+        method: 'DELETE'
+      });
+
+      console.log('✅ Banner deleted');
+      return response.success;
+    } catch (error) {
+      console.error('Error deleting banner:', error);
+      throw error;
+    }
   }
 
-  getBannerStats() {
-    const banners = this.getAllBanners();
-    const activeBanners = this.getActiveBanners();
-    
-    return {
-      totalBanners: banners.length,
-      activeBanners: activeBanners.length,
-      expiredBanners: banners.filter(b => new Date(b.endDate) < new Date()).length,
-      upcomingBanners: banners.filter(b => new Date(b.startDate) > new Date()).length
-    };
+  async updateBannerPosition(bannerId, newPosition) {
+    try {
+      return await this.updateBanner(bannerId, { position: newPosition });
+    } catch (error) {
+      console.error('Error updating banner position:', error);
+      throw error;
+    }
+  }
+
+  async getBannerStats() {
+    try {
+      const allBanners = await this.getAllBanners();
+      const activeBanners = await this.getActiveBanners();
+      
+      return {
+        totalBanners: allBanners.length,
+        activeBanners: activeBanners.length,
+        expiredBanners: allBanners.filter(b => b.end_date && new Date(b.end_date) < new Date()).length,
+        upcomingBanners: allBanners.filter(b => b.start_date && new Date(b.start_date) > new Date()).length
+      };
+    } catch (error) {
+      console.error('Error getting banner stats:', error);
+      return {
+        totalBanners: 0,
+        activeBanners: 0,
+        expiredBanners: 0,
+        upcomingBanners: 0
+      };
+    }
   }
 }
 

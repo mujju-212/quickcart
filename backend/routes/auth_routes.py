@@ -4,6 +4,7 @@ from utils.otp_manager import OTPManager
 from utils.rate_limiter import RateLimiter
 from utils.input_validator import InputValidator
 from utils.auth_middleware import generate_token
+from utils.csrf_protection import CSRFProtection
 from utils.database import db
 import os
 
@@ -222,13 +223,33 @@ def admin_login():
         # Sanitize username
         username = InputValidator.sanitize_string(username, 50)
         
-        # 🔒 SECURITY: Hardcoded admin for demo (in production, use database)
+        # 🔒 SECURITY: Rate limiting for admin login (5 attempts per minute per IP)
+        client_ip = request.remote_addr or 'unknown'
+        rate_limit_key = f"admin_login_{client_ip}"
+        
+        allowed, remaining, reset_time = RateLimiter.check_otp_rate_limit(
+            rate_limit_key, 
+            max_requests=5,  # 5 attempts per minute
+            window_minutes=1
+        )
+        
+        if not allowed:
+            return jsonify({
+                'success': False,
+                'message': 'Too many login attempts. Please try again later.',
+                'rate_limit_exceeded': True,
+                'retry_after': reset_time.isoformat() if reset_time else None
+            }), 429
+        
+        # 🔒 SECURITY: Hardcoded admin for demo (in production, use database with bcrypt)
         if username == 'admin' and password == 'admin123':
+            # Use the real admin user from database (ID 1: Admin, phone: admin)
             admin_data = {
                 'id': 1,
                 'name': 'Admin',
                 'phone': 'admin',
                 'email': 'admin@quickcart.com',
+                'role': 'admin',
                 'is_admin': True,
                 'status': 'active'
             }
@@ -236,18 +257,22 @@ def admin_login():
             # Generate JWT token with admin flag
             token = generate_token(admin_data)
             
+            # Generate CSRF token for admin session
+            csrf_token = CSRFProtection.generate_token(admin_data['id'])
+            
             return jsonify({
                 'success': True,
                 'message': 'Admin login successful',
                 'user': admin_data,
-                'token': token
+                'token': token,
+                'csrf_token': csrf_token  # Include CSRF token for admin operations
             })
         
         # Check database for admin users (if phone number is provided)
         admin_query = """
             SELECT * FROM users 
             WHERE phone = %s 
-            AND is_admin = true 
+            AND role = 'admin' 
             AND status = 'active'
         """
         admin = db.execute_query_one(admin_query, (username,))
@@ -270,6 +295,30 @@ def admin_login():
     except Exception as e:
         print(f"❌ Admin Login Error: {str(e)}")
         return jsonify({'success': False, 'message': 'Internal server error'}), 500
+
+@auth_bp.route('/csrf-token', methods=['GET'])
+def get_csrf_token():
+    """
+    Generate a CSRF token for the current session
+    This endpoint can be called by the frontend to get a CSRF token
+    """
+    try:
+        # Get session identifier (user_id from JWT or IP address)
+        session_identifier = CSRFProtection.get_session_identifier(request)
+        
+        # Generate CSRF token
+        csrf_token = CSRFProtection.generate_token(session_identifier)
+        
+        return jsonify({
+            'success': True,
+            'csrf_token': csrf_token
+        })
+    except Exception as e:
+        print(f"❌ CSRF Token Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to generate CSRF token'
+        }), 500
 
 @auth_bp.route('/otp-status/<phone_number>', methods=['GET'])
 def get_otp_status(phone_number):

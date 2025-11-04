@@ -1,44 +1,87 @@
 import React from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
+import './Footer.css';
 
 const Footer = () => {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="bg-dark text-light py-5 mt-5">
+    <footer className="footer">
       <Container>
-        <Row>
-          <Col md={3}>
-            <h5 className="mb-3">Company</h5>
-            <ul className="list-unstyled">
-              <li><a href="#" className="text-light text-decoration-none">About Us</a></li>
-              <li><a href="#" className="text-light text-decoration-none">Careers</a></li>
-              <li><a href="#" className="text-light text-decoration-none">Blog</a></li>
+        <Row className="py-5">
+          {/* About Section */}
+          <Col lg={3} md={6} className="mb-4">
+            <h5 className="footer-title">QuickCart</h5>
+            <p className="footer-text">
+              Your one-stop online grocery store delivering fresh products right to your doorstep. 
+              Quality products, great prices, fast delivery.
+            </p>
+            <div className="social-links mt-3">
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="social-link">
+                <i className="fab fa-facebook-f"></i>
+              </a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="social-link">
+                <i className="fab fa-twitter"></i>
+              </a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="social-link">
+                <i className="fab fa-instagram"></i>
+              </a>
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="social-link">
+                <i className="fab fa-linkedin-in"></i>
+              </a>
+            </div>
+          </Col>
+
+          {/* Company Links */}
+          <Col lg={3} md={6} className="mb-4">
+            <h5 className="footer-title">Company</h5>
+            <ul className="footer-links">
+              <li><Link to="/about">About Us</Link></li>
+              <li><Link to="/careers">Careers</Link></li>
+              <li><Link to="/blog">Blog</Link></li>
+              <li><Link to="/contact">Contact Us</Link></li>
             </ul>
           </Col>
-          <Col md={3}>
-            <h5 className="mb-3">Support</h5>
-            <ul className="list-unstyled">
-              <li><a href="#" className="text-light text-decoration-none">Help Center</a></li>
-              <li><a href="#" className="text-light text-decoration-none">Contact Us</a></li>
+
+          {/* Support Links */}
+          <Col lg={3} md={6} className="mb-4">
+            <h5 className="footer-title">Support</h5>
+            <ul className="footer-links">
+              <li><Link to="/help">Help Center</Link></li>
+              <li><Link to="/support">Customer Support</Link></li>
             </ul>
           </Col>
-          <Col md={3}>
-            <h5 className="mb-3">Legal</h5>
-            <ul className="list-unstyled">
-              <li><a href="#" className="text-light text-decoration-none">Privacy Policy</a></li>
-              <li><a href="#" className="text-light text-decoration-none">Terms of Service</a></li>
+
+          {/* Legal Links */}
+          <Col lg={2} md={6} className="mb-4">
+            <h5 className="footer-title">Legal</h5>
+            <ul className="footer-links">
+              <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service">Terms of Service</Link></li>
             </ul>
           </Col>
-          <Col md={3}>
-            <h5 className="mb-3">Admin</h5>
-            <ul className="list-unstyled">
-              <li><a href="/admin" className="text-light text-decoration-none">Admin Login</a></li>
+
+          {/* Admin Access */}
+          <Col lg={2} md={6} className="mb-4">
+            <h5 className="footer-title">Admin</h5>
+            <ul className="footer-links">
+              <li><Link to="/admin">Admin Dashboard</Link></li>
             </ul>
           </Col>
         </Row>
-        <hr className="my-4" />
-        <Row>
-          <Col className="text-center">
-            <p className="mb-0">&copy; 2024 QuickCart. All rights reserved.</p>
+
+        {/* Bottom Bar */}
+        <Row className="footer-bottom py-3">
+          <Col md={6} className="text-center text-md-start mb-2 mb-md-0">
+            <p className="mb-0">
+              &copy; {currentYear} QuickCart. All rights reserved.
+            </p>
+          </Col>
+          <Col md={6} className="text-center text-md-end">
+            <p className="mb-0">
+              Made with <i className="fas fa-heart text-danger"></i> for better shopping
+            </p>
           </Col>
         </Row>
       </Container>

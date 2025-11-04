@@ -1,29 +1,68 @@
-import React from 'react';
-import { Row, Col, Card } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Spinner } from 'react-bootstrap';
 import { FaShoppingCart, FaBoxes, FaUsers, FaChartLine } from 'react-icons/fa';
+import analyticsService from '../../../services/analyticsService';
 
 const StatsCards = () => {
-  const dashboardStats = {
-    totalOrders: 248,
-    totalProducts: 1250,
-    totalUsers: 2847,
-    totalRevenue: 125000
+  const [dashboardStats, setDashboardStats] = useState({
+    totalOrders: 0,
+    totalProducts: 0,
+    totalUsers: 0,
+    totalRevenue: 0
+  });
+  const [growth, setGrowth] = useState({
+    orders: 0,
+    revenue: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    setLoading(true);
+    try {
+      const response = await analyticsService.getDashboardStats();
+      console.log('📊 Dashboard Stats Response:', response);
+      
+      if (response.success && response.data) {
+        const { totals, thisMonth } = response.data;
+        console.log('📈 Totals:', totals);
+        console.log('📅 This Month:', thisMonth);
+        
+        setDashboardStats({
+          totalOrders: totals.totalOrders || 0,
+          totalProducts: totals.totalProducts || 0,
+          totalUsers: totals.totalUsers || 0,
+          totalRevenue: totals.totalRevenue || 0
+        });
+        setGrowth({
+          orders: thisMonth?.ordersGrowth || 0,
+          revenue: thisMonth?.revenueGrowth || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const statsData = [
     {
       title: 'Total Orders',
-      value: dashboardStats.totalOrders.toLocaleString(),
+      value: loading ? '...' : dashboardStats.totalOrders.toLocaleString(),
       icon: FaShoppingCart,
       color: '#ffe01b',
       bgColor: '#fffbe6',
-      growth: '+12.5%',
-      growthUp: true,
+      growth: `${growth.orders > 0 ? '+' : ''}${growth.orders.toFixed(1)}%`,
+      growthUp: growth.orders >= 0,
       subtitle: 'This month'
     },
     {
       title: 'Total Products',
-      value: dashboardStats.totalProducts.toLocaleString(),
+      value: loading ? '...' : dashboardStats.totalProducts.toLocaleString(),
       icon: FaBoxes,
       color: '#28a745',
       bgColor: '#e8f5e9',
@@ -33,7 +72,7 @@ const StatsCards = () => {
     },
     {
       title: 'Total Users',
-      value: dashboardStats.totalUsers.toLocaleString(),
+      value: loading ? '...' : dashboardStats.totalUsers.toLocaleString(),
       icon: FaUsers,
       color: '#17a2b8',
       bgColor: '#e0f7fa',
@@ -43,12 +82,12 @@ const StatsCards = () => {
     },
     {
       title: 'Total Revenue',
-      value: `₹${(dashboardStats.totalRevenue / 1000).toFixed(0)}K`,
+      value: loading ? '...' : `₹${(dashboardStats.totalRevenue / 1000).toFixed(0)}K`,
       icon: FaChartLine,
       color: '#dc3545',
       bgColor: '#ffebee',
-      growth: '+18.7%',
-      growthUp: true,
+      growth: `${growth.revenue > 0 ? '+' : ''}${growth.revenue.toFixed(1)}%`,
+      growthUp: growth.revenue >= 0,
       subtitle: 'This month'
     }
   ];

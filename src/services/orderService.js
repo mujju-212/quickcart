@@ -23,7 +23,8 @@ class OrderService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        console.error('❌ Backend error response:', errorData);
+        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       return await response.json();
@@ -46,7 +47,8 @@ class OrderService {
     }
 
     try {
-      const response = await this.makeRequest('/orders');
+      // Call admin endpoint for all orders
+      const response = await this.makeRequest('/orders/admin/all');
       this.backendAvailable = true; // Mark backend as available
       return response.orders || [];
     } catch (error) {
@@ -54,7 +56,13 @@ class OrderService {
       if (this.isDevelopmentMode) {
         console.log('📦 Backend unavailable - switching to mock data for subsequent calls');
       }
-      return this.getMockOrders();
+      // Try fallback to user orders endpoint
+      try {
+        const fallbackResponse = await this.makeRequest('/orders');
+        return fallbackResponse.orders || [];
+      } catch (fallbackError) {
+        return this.getMockOrders();
+      }
     }
   }
 
@@ -251,33 +259,30 @@ class OrderService {
   }
 
   async createOrder(orderData) {
-    // Skip API call in development mode if backend unavailable
-    if (this.isDevelopmentMode && !this.backendAvailable) {
-      // Return mock success response for development
-      return {
-        id: Date.now().toString(),
-        ...orderData,
-        status: 'pending',
-        date: new Date().toISOString()
-      };
-    }
-
     try {
+      console.log('🚀 orderService.createOrder called with:', orderData);
+      
       const response = await this.makeRequest('/orders/create', {
         method: 'POST',
         body: JSON.stringify(orderData)
       });
+      
+      console.log('✅ Backend response:', response);
+      
       this.backendAvailable = true;
+      console.log('✅ Order created successfully:', response.order?.id);
       return response.order;
     } catch (error) {
+      console.error('❌ Failed to create order:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       this.backendAvailable = false;
-      // Return mock success response for development
-      return {
-        id: Date.now().toString(),
-        ...orderData,
-        status: 'pending',
-        date: new Date().toISOString()
-      };
+      
+      // Always throw error - no mock data
+      // User must be logged in with valid token to create orders
+      throw new Error('Failed to create order. Please check your internet connection and try logging in again.');
     }
   }
 

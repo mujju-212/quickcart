@@ -7,6 +7,7 @@ import { LocationProvider } from './context/LocationContext';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import BackToTop from './components/common/BackToTop';
+import MobileBottomNav from './components/common/MobileBottomNav';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -21,6 +22,16 @@ const Login = lazy(() => import('./pages/Login'));
 const OrderConfirmation = lazy(() => import('./pages/OrderConfirmation'));
 const Admin = lazy(() => import('./pages/Admin'));
 const ProtectedRoute = lazy(() => import('./components/common/ProtectedRoute'));
+
+// Static pages
+const AboutUs = lazy(() => import('./pages/AboutUs'));
+const Careers = lazy(() => import('./pages/Careers'));
+const Blog = lazy(() => import('./pages/Blog'));
+const ContactUs = lazy(() => import('./pages/ContactUs'));
+const HelpCenter = lazy(() => import('./pages/HelpCenter'));
+const Support = lazy(() => import('./pages/Support'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -44,6 +55,11 @@ const LoadingSpinner = () => (
 function Layout({ children }) {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const [triggerSearch, setTriggerSearch] = React.useState(false);
+
+  const handleSearchClick = () => {
+    setTriggerSearch(prev => !prev);
+  };
 
   if (isAdminRoute) {
     return <>{children}</>;
@@ -51,10 +67,11 @@ function Layout({ children }) {
 
   return (
     <>
-      <Header />
+      <Header searchTrigger={triggerSearch} />
       <main>{children}</main>
       <Footer />
       <BackToTop />
+      <MobileBottomNav onSearchClick={handleSearchClick} />
     </>
   );
 }
@@ -99,8 +116,20 @@ function App() {
                         </ProtectedRoute>
                       } 
                     />
-                    <Route path="/admin" element={<Admin />} />
-                  </Routes>
+                      
+                      {/* Admin Route */}
+                      <Route path="/admin" element={<Admin />} />
+                      
+                      {/* Static Pages */}
+                      <Route path="/about" element={<AboutUs />} />
+                      <Route path="/careers" element={<Careers />} />
+                      <Route path="/blog" element={<Blog />} />
+                      <Route path="/contact" element={<ContactUs />} />
+                      <Route path="/help" element={<HelpCenter />} />
+                      <Route path="/support" element={<Support />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                      <Route path="/terms-of-service" element={<TermsOfService />} />
+                    </Routes>
                   </Suspense>
                 </Layout>
               </div>

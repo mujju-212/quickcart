@@ -42,6 +42,9 @@ export const AuthProvider = ({ children }) => {
           // Set token if available
           if (token) {
             setAuthToken(token);
+            // ALSO store in localStorage for compatibility
+            localStorage.setItem('token', token);
+            localStorage.setItem('authToken', token);
           }
           
           setLoading(false);
@@ -49,8 +52,8 @@ export const AuthProvider = ({ children }) => {
         }
 
         // Fallback to localStorage for backward compatibility
-        const storedUser = localStorage.getItem('user');
-        const storedToken = localStorage.getItem('authToken');
+        const storedUser = localStorage.getItem('currentUser') || localStorage.getItem('user');
+        const storedToken = localStorage.getItem('token') || localStorage.getItem('authToken');
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           setUser(userData);
@@ -58,6 +61,9 @@ export const AuthProvider = ({ children }) => {
           
           if (storedToken) {
             setAuthToken(storedToken);
+            // Store in localStorage with both keys
+            localStorage.setItem('token', storedToken);
+            localStorage.setItem('authToken', storedToken);
           }
           
           // Migrate to cookie
@@ -65,7 +71,7 @@ export const AuthProvider = ({ children }) => {
           if (storedToken) {
             Cookies.set('auth_token', storedToken, COOKIE_OPTIONS);
           }
-          localStorage.removeItem('user'); // Clean up
+          localStorage.removeItem('user'); // Clean up old key
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -85,7 +91,13 @@ export const AuthProvider = ({ children }) => {
         setCurrentUser(userData);
         setAuthToken(token);
         Cookies.set('quickcart_user', JSON.stringify(userData), COOKIE_OPTIONS);
-        Cookies.set('auth_token', token, COOKIE_OPTIONS); // 🔒 Store JWT
+        Cookies.set('auth_token', token, COOKIE_OPTIONS); // 🔒 Store JWT in cookies
+        
+        // ALSO store in localStorage for compatibility with other components
+        localStorage.setItem('token', token);
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('currentUser', JSON.stringify(userData));
+        
         return { success: true, user: userData };
       }
 
@@ -117,7 +129,9 @@ export const AuthProvider = ({ children }) => {
         id: 1,
         name: 'Admin',
         username: username,
-        isAdmin: true
+        isAdmin: true,
+        role: 'admin',
+        is_admin: true  // This is what the backend expects
       };
       
       setUser(adminData);
@@ -128,6 +142,10 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         setAuthToken(token);
         Cookies.set('auth_token', token, COOKIE_OPTIONS);
+        // ALSO store in localStorage for compatibility
+        localStorage.setItem('token', token);
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('currentUser', JSON.stringify(adminData));
       }
       
       showNotification('Admin login successful!', 'success');
@@ -181,6 +199,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user'); // Clean up legacy storage
     localStorage.removeItem('currentUser'); // Clean up
     localStorage.removeItem('authToken'); // Clean up
+    localStorage.removeItem('token'); // Clean up 'token' key
     localStorage.removeItem('isAdmin'); // Clean up admin flag
     
     showNotification('Logged out successfully', 'info');

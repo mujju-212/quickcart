@@ -189,6 +189,18 @@ class CategoryService {
     }
   }
 
+  async getAllCategoriesAdmin() {
+    try {
+      console.log('🔐 Calling admin categories API...');
+      const response = await this.makeRequest('/categories/admin');
+      console.log('✅ Admin categories API response:', response);
+      return response; // Return full response object with all categories
+    } catch (error) {
+      console.error('❌ Error fetching admin categories from API:', error);
+      return { success: false, categories: [], error: error.message };
+    }
+  }
+
   async createCategory(categoryData) {
     try {
       console.log('🆕 Creating category via API:', categoryData);

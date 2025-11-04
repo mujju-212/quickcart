@@ -71,6 +71,7 @@ class AuthService {
         // 🔒 SECURITY: Store JWT token if user exists
         if (response.token && response.user) {
           localStorage.setItem('authToken', response.token);
+          localStorage.setItem('token', response.token); // Store as 'token' for compatibility
           localStorage.setItem('currentUser', JSON.stringify(response.user));
         }
         
@@ -107,6 +108,7 @@ class AuthService {
       if (response.success && response.token && response.user) {
         // 🔒 SECURITY: Store JWT token and user data
         localStorage.setItem('authToken', response.token);
+        localStorage.setItem('token', response.token); // Store as 'token' for compatibility
         localStorage.setItem('currentUser', JSON.stringify(response.user));
         localStorage.setItem('isAdmin', 'true');
         
@@ -134,6 +136,7 @@ class AuthService {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('isAdmin');
     localStorage.removeItem('authToken');
+    localStorage.removeItem('token'); // Also remove 'token'
   }
 
   getCurrentUser() {

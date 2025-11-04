@@ -1,6 +1,7 @@
 :root {
-  --primary: #ffe01b;
-  --primary-dark: #e6c700;
+  --primary: #ffd700;
+  --primary-gradient: linear-gradient(135deg, #ffd700 0%, #f4c430 100%);
+  --primary-dark: #d4af37;
   --secondary: #26a541;
   --secondary-dark: #1f8f38;
   --bg: #ffffff;
@@ -10,10 +11,21 @@
   --border: #e5e7eb;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-yellow: 0 4px 15px rgba(255, 215, 0, 0.3);
   --radius: 16px;
   --radius-sm: 8px;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Import Mobile CSS Files */
+@import './assets/styles/mobile.css';
+@import './assets/styles/mobile-home.css';
+@import './assets/styles/mobile-product.css';
+@import './assets/styles/mobile-cart.css';
+@import './assets/styles/mobile-checkout.css';
+@import './assets/styles/mobile-account.css';
+@import './assets/styles/mobile-orders.css';
+@import './assets/styles/mobile-login.css';
 
 * {
   margin: 0;

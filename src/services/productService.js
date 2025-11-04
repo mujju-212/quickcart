@@ -41,7 +41,21 @@ class ProductService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Try to get error message from response body
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+          console.error('❌ API Error Response:', errorData);
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       return await response.json();
@@ -57,6 +71,17 @@ class ProductService {
       const response = await this.makeRequest('/products');
       this.backendAvailable = true;
       console.log('✅ Products loaded from API:', response.products?.length || 0);
+      return response;
+    });
+  }
+
+  async getAllProductsForAdmin() {
+    // For admin panel - include out of stock products
+    return cacheUtils.getOrFetch('products:admin:all', async () => {
+      console.log('🌐 Loading all products (including out of stock) for admin...');
+      const response = await this.makeRequest('/products?include_out_of_stock=true');
+      this.backendAvailable = true;
+      console.log('✅ All products loaded for admin:', response.products?.length || 0);
       return response;
     });
   }

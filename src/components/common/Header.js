@@ -88,17 +88,18 @@ const Header = () => {
     <>
       <Navbar bg="white" expand="lg" className="shadow-sm border-bottom" sticky="top">
         <Container>
-          {/* Logo with yellow theme */}
+          {/* Logo with modern gradient theme */}
           <Navbar.Brand as={Link} to="/" className="fw-bold fs-3" style={{ color: '#000' }}>
             <span 
               className="me-2 d-inline-flex align-items-center justify-content-center"
               style={{ 
-                backgroundColor: '#ffe01b', 
-                color: '#000',
+                background: 'linear-gradient(135deg, #ffd700 0%, #f4c430 100%)',
+                color: '#1a1a1a',
                 width: '40px',
                 height: '40px',
                 borderRadius: '8px',
-                fontSize: '20px'
+                fontSize: '20px',
+                boxShadow: '0 4px 15px rgba(255, 215, 0, 0.3)'
               }}
             >
               <i className="fas fa-bolt"></i>

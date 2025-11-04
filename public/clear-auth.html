@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Authentication - QuickCart</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover { background: #5568d3; }
+        .success { color: #28a745; margin-top: 20px; font-weight: bold; }
+        .info { color: #666; margin-top: 10px; font-size: 14px; }
+        .data-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Clear Authentication Data</h1>
+        <p>This will clear all stored authentication tokens and user data.</p>
+        
+        <div id="currentData"></div>
+        
+        <button onclick="showCurrentData()">Show Current Token Data</button>
+        <button onclick="clearAllAuth()" style="background: #dc3545;">Clear All Auth Data</button>
+        
+        <div id="message"></div>
+        <div class="info">After clearing, you'll be redirected to login page.</div>
+    </div>
+
+    <script>
+        function showCurrentData() {
+            const data = {
+                localStorage: {
+                    token: localStorage.getItem('token'),
+                    authToken: localStorage.getItem('authToken'),
+                    currentUser: localStorage.getItem('currentUser'),
+                    user: localStorage.getItem('user')
+                },
+                cookies: document.cookie.split(';').reduce((acc, cookie) => {
+                    const [key, value] = cookie.trim().split('=');
+                    if (key.includes('auth') || key.includes('quickcart') || key.includes('user')) {
+                        acc[key] = value;
+                    }
+                    return acc;
+                }, {}),
+                sessionStorage: {
+                    token: sessionStorage.getItem('token'),
+                    authToken: sessionStorage.getItem('authToken')
+                }
+            };
+
+            // Try to decode JWT token
+            const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    data.decodedToken = payload;
+                } catch (e) {
+                    data.decodedToken = 'Failed to decode';
+                }
+            }
+
+            document.getElementById('currentData').innerHTML = 
+                '<div class="data-display">' + 
+                '<strong>Current Auth Data:</strong><br>' +
+                JSON.stringify(data, null, 2) + 
+                '</div>';
+        }
+
+        function clearAllAuth() {
+            // Clear localStorage
+            localStorage.removeItem('token');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('user');
+            localStorage.removeItem('quickcart_user');
+            
+            // Clear all localStorage (nuclear option)
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            // Clear all cookies
+            document.cookie.split(";").forEach((c) => {
+                document.cookie = c.replace(/^ +/, "")
+                    .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+            
+            document.getElementById('message').innerHTML = 
+                '<div class="success">✅ All authentication data cleared!</div>';
+            
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        }
+
+        // Show data on load
+        showCurrentData();
+    </script>
+</body>
+</html>

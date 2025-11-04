@@ -1,42 +1,110 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Badge, Button, Modal, Form, Row, Col, Alert, Dropdown } from 'react-bootstrap';
-import { FaEye, FaEdit, FaCheck, FaTruck, FaBox, FaTimes, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCreditCard } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Table, Badge, Button, Modal, Form, Row, Col, Alert, Dropdown, Nav, Tab, Spinner, InputGroup, FormControl } from 'react-bootstrap';
+import { FaEye, FaEdit, FaCheck, FaTruck, FaBox, FaTimes, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCreditCard, FaShoppingBag, FaCheckCircle, FaBan, FaClock, FaSearch } from 'react-icons/fa';
+import { useLocation } from 'react-router-dom';
 import orderService from '../../services/orderService';
 import OrderTimeline from '../order/OrderTimeline';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 
 const OrderManagement = () => {
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    preparing: 0,
+    out_for_delivery: 0,
+    delivered: 0,
+    cancelled: 0
+  });
 
+  // Handle navigation from dashboard (view/edit order)
   useEffect(() => {
-    loadOrders();
-  }, []);
+    if (location.state?.viewOrderId && orders.length > 0) {
+      const order = orders.find(o => o.id === location.state.viewOrderId);
+      if (order) {
+        handleViewOrder(order);
+      }
+    } else if (location.state?.editOrderId && orders.length > 0) {
+      const order = orders.find(o => o.id === location.state.editOrderId);
+      if (order) {
+        handleViewOrder(order); // Same modal, just opens in edit mode
+      }
+    }
+  }, [location.state, orders]);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const ordersData = await orderService.getAllOrders();
-      // Ensure ordersData is an array before sorting
+      
+      console.log('📦 Order Management - Raw data received:', ordersData?.length || 0, 'orders');
+      
       if (Array.isArray(ordersData)) {
-        setOrders(ordersData.sort((a, b) => new Date(b.date) - new Date(a.date)));
-        console.log(`📊 Loaded ${ordersData.length} orders successfully`);
+        // Transform database format to component format
+        const transformedOrders = ordersData.map(order => ({
+          ...order,
+          customer: order.user_name || order.customer,
+          date: order.created_at || order.date,
+          email: order.email || '',
+          fullAddress: order.address || order.delivery_address || '',
+          paymentMethod: order.payment_method || 'COD',
+          paymentStatus: order.payment_status || 'Pending',
+          deliveryFee: parseFloat(order.delivery_fee || 0),
+          items: Array.isArray(order.items) ? order.items.map(item => ({
+            id: item.product_id || item.id,
+            name: item.product_name || item.name,
+            quantity: parseInt(item.quantity || 1),
+            price: parseFloat(item.product_price || item.price || 0),
+            total_price: parseFloat(item.total_price || item.total || 0)
+          })) : [],
+          timeline: order.timeline || []
+        }));
+        
+        const sortedOrders = transformedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setOrders(sortedOrders);
+        
+        // Calculate stats
+        const newStats = {
+          total: sortedOrders.length,
+          pending: sortedOrders.filter(o => o.status === 'pending').length,
+          confirmed: sortedOrders.filter(o => o.status === 'confirmed').length,
+          preparing: sortedOrders.filter(o => o.status === 'preparing').length,
+          out_for_delivery: sortedOrders.filter(o => o.status === 'out_for_delivery').length,
+          delivered: sortedOrders.filter(o => o.status === 'delivered').length,
+          cancelled: sortedOrders.filter(o => o.status === 'cancelled').length
+        };
+        setStats(newStats);
+        
+        console.log(`✅ Order Management - Loaded ${sortedOrders.length} orders successfully`);
+        console.log('📊 Order Stats:', newStats);
       } else {
-        console.error('Orders data is not an array:', ordersData);
+        console.error('❌ Orders data is not an array:', ordersData);
         setOrders([]);
       }
     } catch (error) {
-      console.log('ℹ️ Using demo data for development');
-      setError('Using demo data (backend not connected)');
+      console.error('❌ Error loading orders:', error);
+      setError('Failed to load orders. Please try again.');
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Enable auto-refresh every 20 seconds
+  useAutoRefresh(loadOrders, 20000, true);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
 
   const getStatusVariant = (status) => {
     switch (status) {
@@ -110,43 +178,148 @@ const OrderManagement = () => {
     setShowModal(true);
   };
 
-  const filteredOrders = filterStatus === 'all' 
-    ? orders 
-    : orders.filter(order => order.status === filterStatus);
+  const getFilteredOrders = () => {
+    let filtered = orders;
+    
+    // Filter by tab
+    if (activeTab === 'new') {
+      filtered = filtered.filter(o => ['pending', 'confirmed'].includes(o.status));
+    } else if (activeTab === 'processing') {
+      filtered = filtered.filter(o => ['preparing', 'out_for_delivery'].includes(o.status));
+    } else if (activeTab === 'completed') {
+      filtered = filtered.filter(o => o.status === 'delivered');
+    } else if (activeTab === 'cancelled') {
+      filtered = filtered.filter(o => o.status === 'cancelled');
+    }
+    
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(o => 
+        o.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.phone?.includes(searchTerm)
+      );
+    }
+    
+    return filtered;
+  };
+
+  const filteredOrders = getFilteredOrders();
+
+  const renderStatsCard = (title, count, icon, variant, tabKey) => (
+    <Card 
+      className={`text-center cursor-pointer ${activeTab === tabKey ? 'border-' + variant : ''}`}
+      onClick={() => setActiveTab(tabKey)}
+      style={{ cursor: 'pointer', transition: 'all 0.3s' }}
+    >
+      <Card.Body>
+        <div className={`text-${variant} mb-2`} style={{ fontSize: '2rem' }}>
+          {icon}
+        </div>
+        <h3 className="mb-1">{count}</h3>
+        <div className="text-muted small">{title}</div>
+      </Card.Body>
+    </Card>
+  );
 
   return (
     <>
+      {/* Order Statistics Cards */}
+      <Row className="mb-4">
+        <Col md={3}>
+          {renderStatsCard('Total Orders', stats.total, <FaShoppingBag />, 'primary', 'all')}
+        </Col>
+        <Col md={3}>
+          {renderStatsCard('New Orders', stats.pending + stats.confirmed, <FaClock />, 'warning', 'new')}
+        </Col>
+        <Col md={3}>
+          {renderStatsCard('Processing', stats.preparing + stats.out_for_delivery, <FaTruck />, 'info', 'processing')}
+        </Col>
+        <Col md={3}>
+          {renderStatsCard('Completed', stats.delivered, <FaCheckCircle />, 'success', 'completed')}
+        </Col>
+      </Row>
+
       <Card>
-        <Card.Header className="d-flex justify-content-between align-items-center">
+        <Card.Header>
           <h5 className="mb-0">Order Management</h5>
-          <Form.Select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ width: 'auto' }}
-          >
-            <option value="all">All Orders</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="preparing">Preparing</option>
-            <option value="out_for_delivery">Out for Delivery</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-          </Form.Select>
         </Card.Header>
         <Card.Body>
           {error && (
-            <Alert variant="info" className="mb-3">
-              <i className="fas fa-info-circle me-2"></i>
+            <Alert variant="danger" className="mb-3" dismissible onClose={() => setError(null)}>
+              <i className="fas fa-exclamation-triangle me-2"></i>
               {error}
             </Alert>
           )}
+
+          {/* Order Tabs */}
+          <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
+            <Nav variant="tabs" className="mb-3">
+              <Nav.Item>
+                <Nav.Link eventKey="all">
+                  All Orders <Badge bg="secondary" className="ms-2">{stats.total}</Badge>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="new">
+                  New Orders <Badge bg="warning" className="ms-2">{stats.pending + stats.confirmed}</Badge>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="pending">
+                  Pending <Badge bg="warning" className="ms-2">{stats.pending}</Badge>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="confirmed">
+                  Confirmed <Badge bg="info" className="ms-2">{stats.confirmed}</Badge>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="processing">
+                  Processing <Badge bg="primary" className="ms-2">{stats.preparing + stats.out_for_delivery}</Badge>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="completed">
+                  Completed <Badge bg="success" className="ms-2">{stats.delivered}</Badge>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="cancelled">
+                  Cancelled <Badge bg="danger" className="ms-2">{stats.cancelled}</Badge>
+                </Nav.Link>
+              </Nav.Item>
+            </Nav>
+          </Tab.Container>
+          
+          {/* Search Bar */}
+          <div className="mb-3 mt-3">
+            <InputGroup>
+              <InputGroup.Text>
+                <FaSearch />
+              </InputGroup.Text>
+              <FormControl
+                placeholder="Search by Order ID, Customer Name, or Phone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <Button 
+                  variant="outline-secondary" 
+                  onClick={() => setSearchTerm('')}
+                >
+                  Clear
+                </Button>
+              )}
+            </InputGroup>
+          </div>
           
           {loading ? (
-            <div className="text-center py-4">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Loading orders...</span>
-              </div>
-              <div className="mt-2">Loading orders...</div>
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+              <div className="mt-3">Loading orders...</div>
             </div>
           ) : (
             <>
@@ -158,7 +331,7 @@ const OrderManagement = () => {
                     <th>Items</th>
                     <th>Amount</th>
                     <th>Status</th>
-                    <th>Date</th>
+                    <th>Date & Time</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -167,7 +340,7 @@ const OrderManagement = () => {
                     <tr>
                       <td colSpan="7" className="text-center py-4">
                         <div className="text-muted">
-                          {filterStatus === 'all' ? 'No orders found' : `No ${filterStatus} orders found`}
+                          {activeTab === 'all' ? 'No orders found' : `No ${activeTab} orders found`}
                         </div>
                       </td>
                     </tr>
@@ -179,12 +352,17 @@ const OrderManagement = () => {
                   </td>
                   <td>
                     <div>
-                      <div className="fw-semibold">{order.customer}</div>
-                      <small className="text-muted">{order.phone}</small>
+                      <div className="fw-semibold text-primary">
+                        {order.customer || order.user_name || 'N/A'}
+                      </div>
+                      <small className="text-muted">
+                        <FaPhone size={10} className="me-1" />
+                        {order.phone || 'N/A'}
+                      </small>
                     </div>
                   </td>
                   <td>
-                    <Badge bg="info">{order.items.length} items</Badge>
+                    <Badge bg="info">{order.items?.length || 0} items</Badge>
                   </td>
                   <td>
                     <div className="fw-semibold text-success">₹{order.total}</div>
@@ -200,12 +378,20 @@ const OrderManagement = () => {
                     </Badge>
                   </td>
                   <td>
-                    <div>{new Date(order.date).toLocaleDateString()}</div>
+                    <div className="fw-semibold">
+                      {new Date(order.date).toLocaleDateString('en-IN', { 
+                        day: '2-digit', 
+                        month: 'short', 
+                        year: 'numeric' 
+                      })}
+                    </div>
                     <small className="text-muted">
-                      {order.timeline && order.timeline.length > 0 ? 
-                        new Date(order.timeline[0].time).toLocaleTimeString() : 
-                        'No timeline'
-                      }
+                      <FaClock size={10} className="me-1" />
+                      {new Date(order.date).toLocaleTimeString('en-IN', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: true 
+                      })}
                     </small>
                   </td>
                   <td>
@@ -251,8 +437,11 @@ const OrderManagement = () => {
 
       {/* Enhanced Order Details Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="xl">
-        <Modal.Header closeButton style={{ backgroundColor: '#ffd60a', borderBottom: '2px solid #ffcd00' }}>
-          <Modal.Title className="d-flex align-items-center gap-2">
+        <Modal.Header closeButton style={{ 
+          background: 'linear-gradient(135deg, #ffd700 0%, #f4c430 100%)', 
+          borderBottom: '2px solid #ffcd00' 
+        }}>
+          <Modal.Title className="d-flex align-items-center gap-2" style={{ color: '#1a1a1a' }}>
             <FaEye /> Order Details - {selectedOrder?.id}
           </Modal.Title>
         </Modal.Header>
@@ -383,9 +572,9 @@ const OrderManagement = () => {
                           <td className="align-middle">
                             <Badge bg="secondary">{item.quantity}</Badge>
                           </td>
-                          <td className="align-middle">₹{item.price}</td>
+                          <td className="align-middle">₹{parseFloat(item.price || 0).toFixed(2)}</td>
                           <td className="align-middle">
-                            <strong>₹{item.price * item.quantity}</strong>
+                            <strong>₹{(parseFloat(item.price || 0) * parseInt(item.quantity || 1)).toFixed(2)}</strong>
                           </td>
                         </tr>
                       ))}
@@ -393,15 +582,15 @@ const OrderManagement = () => {
                     <tfoot className="table-light">
                       <tr>
                         <th colSpan="3">Subtotal</th>
-                        <th>₹{selectedOrder.total - selectedOrder.deliveryFee}</th>
+                        <th>₹{(parseFloat(selectedOrder.total || 0) - parseFloat(selectedOrder.deliveryFee || 0)).toFixed(2)}</th>
                       </tr>
                       <tr>
                         <th colSpan="3">Delivery Fee</th>
-                        <th>₹{selectedOrder.deliveryFee}</th>
+                        <th>₹{parseFloat(selectedOrder.deliveryFee || 0).toFixed(2)}</th>
                       </tr>
                       <tr className="table-warning">
                         <th colSpan="3">Total Amount</th>
-                        <th>₹{selectedOrder.total}</th>
+                        <th>₹{parseFloat(selectedOrder.total || 0).toFixed(2)}</th>
                       </tr>
                     </tfoot>
                   </Table>
@@ -415,8 +604,8 @@ const OrderManagement = () => {
                 </Card.Header>
                 <Card.Body>
                   <OrderTimeline 
-                    timeline={selectedOrder.timeline} 
-                    currentStatus={selectedOrder.status} 
+                    status={selectedOrder.status}
+                    timeline={selectedOrder.timeline || []} 
                   />
                 </Card.Body>
               </Card>

@@ -20,6 +20,7 @@ from backend.routes.order_routes import order_bp
 from backend.routes.wishlist_routes import wishlist_bp
 from backend.routes.banner_routes import banner_bp
 from backend.routes.offer_routes import offer_bp
+from backend.routes.analytics_routes import analytics_bp
 from backend.utils.database import db
 
 # Configure logging
@@ -62,6 +63,35 @@ def create_app():
     app.register_blueprint(wishlist_bp, url_prefix='/api/wishlist')
     app.register_blueprint(banner_bp, url_prefix='/api/banners')
     app.register_blueprint(offer_bp, url_prefix='/api/offers')
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    
+    # Add security headers
+    @app.after_request
+    def add_security_headers(response):
+        """Add security headers to all responses"""
+        # Prevent MIME type sniffing
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        
+        # Prevent clickjacking attacks
+        response.headers['X-Frame-Options'] = 'DENY'
+        
+        # Enable XSS protection in older browsers
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        
+        # Enforce HTTPS in production (HSTS)
+        if os.environ.get('FLASK_ENV') == 'production':
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        
+        # Content Security Policy (CSP) - Basic policy
+        response.headers['Content-Security-Policy'] = "default-src 'self'"
+        
+        # Referrer Policy
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        
+        # Permissions Policy (formerly Feature-Policy)
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        
+        return response
     
     return app
 

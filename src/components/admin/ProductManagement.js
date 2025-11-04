@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Modal, Form, Alert, Badge, InputGroup, Row, Col, Dropdown, Pagination } from 'react-bootstrap';
 import productService from '../../services/productService';
-import { PRODUCTS as CONSTANTS_PRODUCTS } from '../../utils/constants';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 
 const ProductManagement = () => {
   // Load from localStorage first, fallback to constants
@@ -42,7 +42,6 @@ const ProductManagement = () => {
   useEffect(() => {
     const initializeData = async () => {
       console.log('🔍 ProductManagement mounting...');
-      console.log('📦 CONSTANTS_PRODUCTS loaded:', CONSTANTS_PRODUCTS.length, 'products');
       
       try {
         // Load categories
@@ -51,7 +50,7 @@ const ProductManagement = () => {
         console.log('📂 Categories loaded:', categoriesData.length);
         console.log('📂 First category:', categoriesData[0]);
         
-        // Load products from localStorage (includes both constants and custom additions)
+        // Load products from database
         await loadAllProducts();
       } catch (error) {
         console.error('Error initializing product data:', error);
@@ -62,13 +61,13 @@ const ProductManagement = () => {
     initializeData();
   }, []);
 
-  const loadAllProducts = async () => {
+  const loadAllProducts = useCallback(async () => {
     console.log('🔄 Loading all products...');
     setLoading(true);
     
     try {
-      // Get products from service (which handles localStorage + constants merge)
-      const response = await productService.getAllProducts();
+      // Get all products including out of stock for admin
+      const response = await productService.getAllProductsForAdmin();
       console.log('📦 Product service response:', response);
       
       // Handle both direct array and object response formats
@@ -83,7 +82,10 @@ const ProductManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Enable auto-refresh every 20 seconds
+  useAutoRefresh(loadAllProducts, 20000, true);
 
   useEffect(() => {
     filterAndSortProducts();
@@ -343,17 +345,23 @@ const ProductManagement = () => {
       const categoryName = selectedCategory ? selectedCategory.name : formData.category;
       
       const apiData = {
-        ...formData,
-        category_name: categoryName, // API expects category_name
-        original_price: formData.originalPrice, // API expects original_price
-        image_url: JSON.stringify(allImages) // Store all images as JSON array
+        name: formData.name,
+        category_name: categoryName,
+        price: parseFloat(formData.price) || 0,
+        original_price: parseFloat(formData.originalPrice) || parseFloat(formData.price) || 0,
+        stock: parseInt(formData.stock) || 0,
+        size: formData.size,
+        image_url: JSON.stringify(allImages),
+        description: formData.description || '',
+        status: 'active'
       };
-      delete apiData.category; // Remove frontend field
-      delete apiData.originalPrice; // Remove frontend field
-      delete apiData.image;
-      delete apiData.images;
 
       console.log('🔄 Submitting product data:', apiData);
+      console.log('📦 Data types:', {
+        price: typeof apiData.price,
+        original_price: typeof apiData.original_price,
+        stock: typeof apiData.stock
+      });
       console.log('📸 Images being saved:', allImages);
 
       let result;
@@ -445,9 +453,6 @@ const ProductManagement = () => {
               Product Management 
               <Badge bg="success" className="ms-2">
                 {filteredProducts.length} of {Array.isArray(products) ? products.length : 0} products
-              </Badge>
-              <Badge bg="info" className="ms-2">
-                Loaded from Constants: {CONSTANTS_PRODUCTS.length}
               </Badge>
             </h5>
             <div>
@@ -706,15 +711,50 @@ const ProductManagement = () => {
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(currentPage - 1)}
                 />
-                {[...Array(totalPages)].map((_, index) => (
+                
+                {/* First page */}
+                <Pagination.Item
+                  active={currentPage === 1}
+                  onClick={() => setCurrentPage(1)}
+                >
+                  1
+                </Pagination.Item>
+                
+                {/* Ellipsis before current range */}
+                {currentPage > 4 && <Pagination.Ellipsis disabled />}
+                
+                {/* Pages around current page */}
+                {[...Array(totalPages)].map((_, index) => {
+                  const pageNum = index + 1;
+                  // Show pages 2 to (totalPages-1) only if they're near current page
+                  if (pageNum === 1 || pageNum === totalPages) return null; // Skip first and last
+                  if (pageNum >= currentPage - 2 && pageNum <= currentPage + 2) {
+                    return (
+                      <Pagination.Item
+                        key={pageNum}
+                        active={pageNum === currentPage}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Pagination.Item>
+                    );
+                  }
+                  return null;
+                })}
+                
+                {/* Ellipsis after current range */}
+                {currentPage < totalPages - 3 && <Pagination.Ellipsis disabled />}
+                
+                {/* Last page (only if there's more than 1 page) */}
+                {totalPages > 1 && (
                   <Pagination.Item
-                    key={index + 1}
-                    active={index + 1 === currentPage}
-                    onClick={() => setCurrentPage(index + 1)}
+                    active={currentPage === totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
                   >
-                    {index + 1}
+                    {totalPages}
                   </Pagination.Item>
-                ))}
+                )}
+                
                 <Pagination.Next 
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(currentPage + 1)}
