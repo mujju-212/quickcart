@@ -10,6 +10,7 @@ import CategoryGrid from '../components/product/CategoryGrid';
 import CategoryProductSection from '../components/product/CategoryProductSection';
 import BannerCarousel from '../components/common/BannerCarousel';
 import useAutoRefresh from '../hooks/useAutoRefresh';
+import '../assets/styles/mobile-home.css';
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
@@ -265,7 +266,7 @@ const Home = () => {
           <div className="row g-3">
             {offers && offers.length > 0 ? (
               offers.map((offer) => (
-                <div key={offer.id} className="col-md-4">
+                <div key={offer.id} className="col-12 col-md-4">
                   <div className="card h-100 border-0 position-relative overflow-hidden" style={{ cursor: 'pointer' }}>
                     <img 
                       src={offer.image_url || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=200&fit=crop&q=80'} 
