@@ -10,6 +10,7 @@ class Config:
     # Flask Configuration
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
     DEBUG = os.getenv('FLASK_ENV') == 'development'
+    FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     
     # Database Configuration
     DB_HOST = os.getenv('DB_HOST', 'localhost')

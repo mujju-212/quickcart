@@ -1,6 +1,7 @@
 import requests
 import random
 import time
+import socket
 from twilio.rest import Client
 from config.config import Config
 
@@ -9,7 +10,17 @@ class SMSService:
     
     def __init__(self):
         self.config = Config()
+        self.internet_available = self._check_internet_connection()
         
+    def _check_internet_connection(self):
+        """Check if internet connection is available"""
+        try:
+            # Try to resolve Google's DNS server
+            socket.create_connection(("8.8.8.8", 53), timeout=3)
+            return True
+        except (socket.timeout, socket.error, OSError):
+            return False
+    
     def generate_otp(self):
         """Generate a random 6-digit OTP"""
         return str(random.randint(100000, 999999))
@@ -20,9 +31,13 @@ class SMSService:
             if not all([self.config.TWILIO_ACCOUNT_SID, self.config.TWILIO_AUTH_TOKEN, self.config.TWILIO_PHONE_NUMBER]):
                 return False, "Twilio credentials not configured"
             
+            # Check internet connection first
+            if not self.internet_available:
+                return False, "No internet connection available"
+            
             # Initialize Twilio client with timeout
             client = Client(self.config.TWILIO_ACCOUNT_SID, self.config.TWILIO_AUTH_TOKEN)
-            client.http_client.timeout = 10  # 10 second timeout
+            client.http_client.timeout = 5  # Reduced timeout for faster failure
             
             # Format phone number for international format
             formatted_phone = self._format_phone_number(phone_number)
@@ -36,50 +51,81 @@ class SMSService:
                 to=formatted_phone
             )
             
-            print(f"Twilio SMS sent successfully. SID: {message_instance.sid}")
+            print(f"✅ Twilio SMS sent successfully. SID: {message_instance.sid}")
             return True, message_instance.sid
             
         except Exception as e:
-            print(f"Twilio Error: {str(e)}")
-            return False, str(e)
+            error_msg = str(e)
+            if 'NameResolutionError' in error_msg or 'getaddrinfo failed' in error_msg:
+                print(f"⚠️ Twilio Error: DNS resolution failed (no internet)")
+            else:
+                print(f"⚠️ Twilio Error: {error_msg}")
+            return False, error_msg
     
     def send_fast2sms(self, phone_number, message):
         """Send SMS using Fast2SMS (backup)"""
         try:
             if not self.config.FAST2SMS_API_KEY:
                 return False, "Fast2SMS API key not configured"
+            
+            # Check internet connection first
+            if not self.internet_available:
+                return False, "No internet connection available"
                 
-            # Try different Fast2SMS routes
+            # Try different Fast2SMS routes with timeout
             routes_to_try = ['q', 'dlt', 'p']
             
             for route in routes_to_try:
-                params = {
-                    'authorization': self.config.FAST2SMS_API_KEY,
-                    'route': route,
-                    'message': message,
-                    'language': 'english',
-                    'flash': 0,
-                    'numbers': phone_number
-                }
-                
-                response = requests.get(self.config.FAST2SMS_URL, params=params)
-                response_data = response.json()
-                
-                print(f"Fast2SMS Route '{route}' Response: {response_data}")
-                
-                if response_data.get('return'):
-                    return True, f"SMS sent via Fast2SMS route '{route}'"
+                try:
+                    params = {
+                        'authorization': self.config.FAST2SMS_API_KEY,
+                        'route': route,
+                        'message': message,
+                        'language': 'english',
+                        'flash': 0,
+                        'numbers': phone_number
+                    }
+                    
+                    response = requests.get(self.config.FAST2SMS_URL, params=params, timeout=5)
+                    response_data = response.json()
+                    
+                    print(f"Fast2SMS Route '{route}' Response: {response_data}")
+                    
+                    if response_data.get('return'):
+                        print(f"✅ Fast2SMS sent successfully via route '{route}'")
+                        return True, f"SMS sent via Fast2SMS route '{route}'"
+                except requests.exceptions.Timeout:
+                    print(f"⚠️ Fast2SMS Route '{route}' timeout")
+                    continue
+                except Exception as route_error:
+                    print(f"⚠️ Fast2SMS Route '{route}' error: {str(route_error)}")
+                    continue
             
             return False, "All Fast2SMS routes failed"
             
         except Exception as e:
-            return False, str(e)
+            error_msg = str(e)
+            if 'NameResolutionError' in error_msg or 'getaddrinfo failed' in error_msg:
+                print(f"⚠️ Fast2SMS Error: DNS resolution failed (no internet)")
+            else:
+                print(f"⚠️ Fast2SMS Error: {error_msg}")
+            return False, error_msg
     
     def send_sms(self, phone_number, message):
         """Send SMS using available services (Twilio first, then Fast2SMS)"""
+        # Quick check for internet connectivity
+        if not self.internet_available:
+            print("⚠️ No internet connection detected, using development mode")
+            return {
+                'success': True,
+                'message': 'Development mode: No internet connection',
+                'provider': 'development',
+                'reason': 'no_internet'
+            }
+        
         # Try Twilio first (most reliable)
         if all([self.config.TWILIO_ACCOUNT_SID, self.config.TWILIO_AUTH_TOKEN, self.config.TWILIO_PHONE_NUMBER]):
-            print("Attempting to send SMS via Twilio...")
+            print("📱 Attempting to send SMS via Twilio...")
             success, result = self.send_twilio_sms(phone_number, message)
             if success:
                 return {
@@ -89,11 +135,11 @@ class SMSService:
                     'sid': result
                 }
             else:
-                print(f"Twilio failed: {result}")
+                print(f"⚠️ Twilio failed: {result}")
         
         # Try Fast2SMS as backup
         if self.config.FAST2SMS_API_KEY:
-            print("Attempting to send SMS via Fast2SMS...")
+            print("📱 Attempting to send SMS via Fast2SMS...")
             success, result = self.send_fast2sms(phone_number, message)
             if success:
                 return {
@@ -102,14 +148,15 @@ class SMSService:
                     'provider': 'fast2sms'
                 }
             else:
-                print(f"Fast2SMS failed: {result}")
+                print(f"⚠️ Fast2SMS failed: {result}")
         
         # Return development mode when all services fail
-        print("All SMS services failed, falling back to development mode")
+        print("💻 All SMS services failed, falling back to development mode")
         return {
-            'success': True,  # Changed to True for development fallback
+            'success': True,
             'message': 'Development mode: SMS services unavailable',
-            'provider': 'development'
+            'provider': 'development',
+            'reason': 'all_providers_failed'
         }
     
     def send_otp_sms(self, phone_number):

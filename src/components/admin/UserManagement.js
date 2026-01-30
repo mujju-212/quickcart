@@ -14,7 +14,8 @@ const UserManagement = () => {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/analytics/users', {
+      const apiUrl = process.env.REACT_APP_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/analytics/users`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

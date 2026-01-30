@@ -23,15 +23,15 @@ class RateLimiter:
             otp_rate_limit_table = """
                 CREATE TABLE IF NOT EXISTS otp_rate_limits (
                     id SERIAL PRIMARY KEY,
-                    phone VARCHAR(15) NOT NULL,
+                    identifier VARCHAR(255) NOT NULL,
                     request_count INTEGER DEFAULT 1,
                     last_request TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     reset_date DATE DEFAULT CURRENT_DATE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 
-                CREATE INDEX IF NOT EXISTS idx_phone_date 
-                ON otp_rate_limits (phone, reset_date);
+                CREATE INDEX IF NOT EXISTS idx_identifier_date 
+                ON otp_rate_limits (identifier, reset_date);
             """
             
             # API rate limiting table
@@ -57,9 +57,9 @@ class RateLimiter:
             logger.error(f"❌ Error initializing rate limit tables: {e}")
     
     @staticmethod
-    def check_otp_rate_limit(phone_number, max_requests=20):
+    def check_otp_rate_limit(identifier, max_requests=20):
         """
-        Check if phone number has exceeded daily OTP limit
+        Check if identifier (phone/email) has exceeded daily OTP limit
         Returns: (allowed: bool, remaining: int, reset_time: datetime)
         """
         try:
@@ -68,18 +68,18 @@ class RateLimiter:
             # Get or create rate limit record for today
             query = """
                 SELECT * FROM otp_rate_limits 
-                WHERE phone = %s AND reset_date = %s
+                WHERE identifier = %s AND reset_date = %s
             """
-            record = db.execute_query_one(query, (phone_number, today))
+            record = db.execute_query_one(query, (identifier, today))
             
             if not record:
                 # First request today - create record
                 insert_query = """
-                    INSERT INTO otp_rate_limits (phone, request_count, reset_date)
+                    INSERT INTO otp_rate_limits (identifier, request_count, reset_date)
                     VALUES (%s, 1, %s)
                     RETURNING *
                 """
-                db.execute_query(insert_query, (phone_number, today))
+                db.execute_query(insert_query, (identifier, today))
                 
                 reset_time = datetime.combine(today + timedelta(days=1), datetime.min.time())
                 return True, max_requests - 1, reset_time
@@ -94,9 +94,9 @@ class RateLimiter:
                 UPDATE otp_rate_limits 
                 SET request_count = request_count + 1,
                     last_request = CURRENT_TIMESTAMP
-                WHERE phone = %s AND reset_date = %s
+                WHERE identifier = %s AND reset_date = %s
             """
-            db.execute_query(update_query, (phone_number, today))
+            db.execute_query(update_query, (identifier, today))
             
             remaining = max_requests - (record['request_count'] + 1)
             reset_time = datetime.combine(today + timedelta(days=1), datetime.min.time())

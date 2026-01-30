@@ -177,6 +177,109 @@ class AuthService {
       return 0;
     }
   }
+
+  // ========== EMAIL AUTHENTICATION METHODS ==========
+
+  async sendEmailOTP(email) {
+    try {
+      const response = await this.makeRequest('/auth/send-email-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+      
+      // If development mode, show OTP in console
+      if (response.development_mode && response.otp) {
+        console.log('🔔 DEVELOPMENT MODE - Email OTP:', response.otp);
+      }
+      
+      return {
+        success: response.success,
+        message: response.message,
+        development_mode: response.development_mode,
+        otp: response.otp,
+        remaining_attempts: response.remaining_attempts
+      };
+    } catch (error) {
+      console.error('Send Email OTP Error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to send OTP. Please try again.'
+      };
+    }
+  }
+
+  async verifyEmailOTPAndLogin(email, otp) {
+    try {
+      const response = await this.makeRequest('/auth/verify-email-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp })
+      });
+
+      if (response.success) {
+        // 🔒 SECURITY: Store JWT token if user exists
+        if (response.token && response.user) {
+          localStorage.setItem('authToken', response.token);
+          localStorage.setItem('token', response.token);
+          localStorage.setItem('currentUser', JSON.stringify(response.user));
+        }
+        
+        return {
+          success: true,
+          user: response.user,
+          token: response.token,
+          isNewUser: response.isNewUser || false,
+          email: response.email,
+          loginMethod: 'email',
+          message: response.message || 'OTP verified successfully'
+        };
+      }
+      
+      return {
+        success: false,
+        message: response.message || 'Invalid OTP'
+      };
+    } catch (error) {
+      console.error('Verify Email OTP Error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to verify OTP. Please try again.'
+      };
+    }
+  }
+
+  async completeProfileWithEmail(email, name, phone = '') {
+    try {
+      const response = await this.makeRequest('/auth/complete-profile-email', {
+        method: 'POST',
+        body: JSON.stringify({ email, name, phone })
+      });
+
+      if (response.success && response.token && response.user) {
+        // 🔒 SECURITY: Store JWT token and user data
+        localStorage.setItem('authToken', response.token);
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('currentUser', JSON.stringify(response.user));
+        
+        return {
+          success: true,
+          user: response.user,
+          token: response.token,
+          message: response.message || 'Profile created successfully'
+        };
+      }
+      
+      return {
+        success: false,
+        message: response.message || 'Failed to create profile'
+      };
+    } catch (error) {
+      console.error('Complete Profile Email Error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to create profile. Please try again.'
+      };
+    }
+  }
 }
 
 export default new AuthService();

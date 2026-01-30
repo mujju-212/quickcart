@@ -7,7 +7,9 @@ import ProfileCompletionModal from '../components/auth/ProfileCompletionModal';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [loginMethod, setLoginMethod] = useState('phone'); // 'phone' or 'email'
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -15,6 +17,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [otpSent, setOtpSent] = useState(false);
+  const [currentIdentifier, setCurrentIdentifier] = useState(''); // Store phone or email
 
   const { login, registerUser } = useAuth();
   const navigate = useNavigate();
@@ -39,15 +42,26 @@ const Login = () => {
     e.preventDefault();
     setError('');
     
-    if (phone.length !== 10) {
-      setError('Please enter a valid 10-digit phone number');
-      return;
+    if (loginMethod === 'phone') {
+      if (phone.length !== 10) {
+        setError('Please enter a valid 10-digit phone number');
+        return;
+      }
+      setCurrentIdentifier(phone);
+    } else {
+      if (!email || !email.includes('@')) {
+        setError('Please enter a valid email address');
+        return;
+      }
+      setCurrentIdentifier(email);
     }
 
     setLoading(true);
     
     try {
-      const result = await authService.sendOTP(phone);
+      const result = loginMethod === 'phone' 
+        ? await authService.sendOTP(phone)
+        : await authService.sendEmailOTP(email);
       
       if (result.success) {
         setShowOtpModal(true);
@@ -80,13 +94,16 @@ const Login = () => {
     setLoading(true);
     
     try {
-      const result = await authService.verifyOTPAndLogin(phone, otp);
+      const result = loginMethod === 'phone'
+        ? await authService.verifyOTPAndLogin(phone, otp)
+        : await authService.verifyEmailOTPAndLogin(email, otp);
       
       if (result.success) {
         // 🔒 SECURITY: Check for JWT token from backend
         if (result.token && result.user) {
           // Existing user with JWT token - log them in
-          await login(phone, result.user, result.token); // Pass token to login
+          const identifier = loginMethod === 'phone' ? phone : email;
+          await login(identifier, result.user, result.token);
           setShowOtpModal(false);
           
           // Redirect to home page
@@ -115,7 +132,9 @@ const Login = () => {
     setLoading(true);
     
     try {
-      const result = await authService.sendOTP(phone);
+      const result = loginMethod === 'phone'
+        ? await authService.sendOTP(phone)
+        : await authService.sendEmailOTP(email);
       
       if (result.success) {
         setResendTimer(60);
@@ -179,21 +198,65 @@ const Login = () => {
 
                 {error && <Alert variant="danger">{error}</Alert>}
 
+                {/* Login Method Toggle */}
+                <div className="mb-4">
+                  <div className="btn-group w-100" role="group">
+                    <button
+                      type="button"
+                      className={`btn ${loginMethod === 'phone' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => {
+                        setLoginMethod('phone');
+                        setError('');
+                      }}
+                    >
+                      <i className="fas fa-mobile-alt me-2"></i>
+                      Phone
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${loginMethod === 'email' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => {
+                        setLoginMethod('email');
+                        setError('');
+                      }}
+                    >
+                      <i className="fas fa-envelope me-2"></i>
+                      Email
+                    </button>
+                  </div>
+                </div>
+
                 <Form onSubmit={handleSendOtp}>
-                  <Form.Group className="mb-4">
-                    <Form.Label>Phone Number</Form.Label>
-                    <Form.Control
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="Enter your 10-digit phone number"
-                      maxLength="10"
-                      required
-                    />
-                    <Form.Text className="text-muted">
-                      We'll send you an OTP to verify your number
-                    </Form.Text>
-                  </Form.Group>
+                  {loginMethod === 'phone' ? (
+                    <Form.Group className="mb-4">
+                      <Form.Label>Phone Number</Form.Label>
+                      <Form.Control
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        placeholder="Enter your 10-digit phone number"
+                        maxLength="10"
+                        required
+                      />
+                      <Form.Text className="text-muted">
+                        We'll send you an OTP via SMS
+                      </Form.Text>
+                    </Form.Group>
+                  ) : (
+                    <Form.Group className="mb-4">
+                      <Form.Label>Email Address</Form.Label>
+                      <Form.Control
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email address"
+                        required
+                      />
+                      <Form.Text className="text-muted">
+                        We'll send you an OTP via email
+                      </Form.Text>
+                    </Form.Group>
+                  )}
 
                   <Button 
                     type="submit" 
@@ -216,7 +279,10 @@ const Login = () => {
                   <small className="text-muted">
                     <i className="fas fa-shield-alt me-2"></i>
                     <strong>Secure OTP Authentication</strong><br/>
-                    Enter your phone number to receive a one-time password via SMS
+                    {loginMethod === 'phone' 
+                      ? 'Enter your phone number to receive a one-time password via SMS'
+                      : 'Enter your email to receive a one-time password'
+                    }
                   </small>
                 </div>
               </Card.Body>
@@ -232,7 +298,11 @@ const Login = () => {
         </Modal.Header>
         <Modal.Body>
           <p className="text-center mb-3">
-            Enter the OTP sent to <strong>+91 {phone}</strong>
+            {loginMethod === 'phone' ? (
+              <>Enter the OTP sent to <strong>+91 {phone}</strong></>
+            ) : (
+              <>Enter the OTP sent to <strong>{email}</strong></>
+            )}
           </p>
           
           {error && <Alert variant="danger">{error}</Alert>}
@@ -279,7 +349,7 @@ const Login = () => {
                 }}
                 className="text-decoration-none"
               >
-                Change Phone Number
+                Change {loginMethod === 'phone' ? 'Phone' : 'Email'}
               </Button>
               
               <Button 
@@ -302,7 +372,8 @@ const Login = () => {
       {/* Profile Completion Modal for New Users */}
       <ProfileCompletionModal
         show={showProfileModal}
-        phone={phone}
+        phone={loginMethod === 'phone' ? phone : ''}
+        email={loginMethod === 'email' ? email : ''}
         onComplete={handleProfileComplete}
         onCancel={handleProfileCancel}
       />

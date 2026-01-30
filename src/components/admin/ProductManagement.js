@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Modal, Form, Alert, Badge, InputGroup, Row, Col, Dropdown, Pagination } from 'react-bootstrap';
 import productService from '../../services/productService';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
+import ProductReviewsAdmin from './products/ProductReviewsAdmin';
 
 const ProductManagement = () => {
   // Load from localStorage first, fallback to constants
@@ -15,6 +16,10 @@ const ProductManagement = () => {
   const [message, setMessage] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState(null);
+  
+  // Review management state
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Filter and pagination states
   const [searchTerm, setSearchTerm] = useState('');
@@ -208,6 +213,7 @@ const ProductManagement = () => {
       stock: '',
       size: '',
       image: '',
+      images: [],
       description: ''
     });
     setShowModal(true);
@@ -667,6 +673,17 @@ const ProductManagement = () => {
                       </td>
                       <td>
                         <div className="d-flex gap-1">
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setShowReviewsModal(true);
+                            }}
+                            title="Manage Reviews"
+                          >
+                            <i className="fas fa-star"></i>
+                          </Button>
                           <Button
                             variant="outline-info"
                             size="sm"
@@ -1172,6 +1189,19 @@ const ProductManagement = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Product Reviews Management Modal */}
+      {selectedProduct && (
+        <ProductReviewsAdmin
+          show={showReviewsModal}
+          onHide={() => {
+            setShowReviewsModal(false);
+            setSelectedProduct(null);
+          }}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+        />
+      )}
     </div>
   );
 };

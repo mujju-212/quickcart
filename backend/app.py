@@ -21,6 +21,7 @@ from backend.routes.wishlist_routes import wishlist_bp
 from backend.routes.banner_routes import banner_bp
 from backend.routes.offer_routes import offer_bp
 from backend.routes.analytics_routes import analytics_bp
+from backend.routes.review_routes import review_bp
 from backend.utils.database import db
 
 # Configure logging
@@ -40,8 +41,9 @@ def create_app():
     app.url_map.strict_slashes = False
     
     # Enable CORS for all routes with more permissive settings
+    # Allow all origins for tunnel access (use regex pattern for loca.lt domains)
     CORS(app, 
-         origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3003"],
+         resources={r"/*": {"origins": "*"}},
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],
          supports_credentials=True)
@@ -64,6 +66,7 @@ def create_app():
     app.register_blueprint(banner_bp, url_prefix='/api/banners')
     app.register_blueprint(offer_bp, url_prefix='/api/offers')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    app.register_blueprint(review_bp, url_prefix='/api/reviews')
     
     # Add security headers
     @app.after_request

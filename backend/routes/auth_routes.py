@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.sms_service import SMSService
+from services.email_service import EmailService
 from utils.otp_manager import OTPManager
 from utils.rate_limiter import RateLimiter
 from utils.input_validator import InputValidator
@@ -13,6 +14,7 @@ auth_bp = Blueprint('auth', __name__)
 
 # Initialize services
 sms_service = SMSService()
+email_service = EmailService()
 otp_manager = OTPManager()
 
 # Environment check
@@ -225,10 +227,10 @@ def admin_login():
         
         # 🔒 SECURITY: Rate limiting for admin login (5 attempts per minute per IP)
         client_ip = request.remote_addr or 'unknown'
-        rate_limit_key = f"admin_login_{client_ip}"
         
-        allowed, remaining, reset_time = RateLimiter.check_otp_rate_limit(
-            rate_limit_key, 
+        allowed, remaining, reset_time = RateLimiter.check_api_rate_limit(
+            client_ip, 
+            '/auth/admin-login',
             max_requests=5,  # 5 attempts per minute
             window_minutes=1
         )
@@ -335,3 +337,205 @@ def get_otp_status(phone_number):
             'success': False,
             'message': 'Internal server error'
         }), 500
+
+# ========== EMAIL-BASED AUTHENTICATION ROUTES ==========
+
+@auth_bp.route('/send-email-otp', methods=['POST'])
+def send_email_otp():
+    """Send OTP to email address with rate limiting"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({
+                'success': False,
+                'message': 'Email address is required'
+            }), 400
+        
+        # Validate email
+        is_valid, clean_email, error = InputValidator.validate_email(email)
+        if not is_valid:
+            return jsonify({
+                'success': False,
+                'message': error
+            }), 400
+        
+        email = clean_email
+        
+        # 🔒 SECURITY: Check OTP rate limit (10 per day for email)
+        allowed, remaining, reset_time = RateLimiter.check_otp_rate_limit(email, max_requests=10)
+        
+        if not allowed:
+            return jsonify({
+                'success': False,
+                'message': f'Daily OTP limit exceeded. Try again after {reset_time.strftime("%I:%M %p")}',
+                'rate_limit_exceeded': True,
+                'reset_time': reset_time.isoformat()
+            }), 429
+        
+        # Send OTP via Email
+        result = email_service.send_otp_email(email)
+        
+        # Store OTP for verification
+        otp_manager.store_otp(email, result['otp'])
+        
+        # Prepare response
+        response_data = {
+            'success': True,
+            'message': result['message'],
+            'provider': result['provider'],
+            'remaining_attempts': remaining
+        }
+        
+        # 🔒 SECURITY: Only expose OTP in development mode
+        if result['provider'] == 'development' and IS_DEVELOPMENT:
+            print(f"🔔 DEVELOPMENT MODE: OTP for {email} is: {result['otp']}")
+            response_data['development_mode'] = True
+            response_data['otp'] = result['otp']
+            response_data['message'] = f"Development Mode: OTP is {result['otp']}"
+        
+        return jsonify(response_data)
+            
+    except Exception as e:
+        print(f"❌ Send Email OTP Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
+        }), 500
+
+@auth_bp.route('/verify-email-otp', methods=['POST'])
+def verify_email_otp():
+    """Verify email OTP and generate JWT token"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        otp = data.get('otp')
+        
+        if not email or not otp:
+            return jsonify({
+                'success': False,
+                'message': 'Email and OTP are required'
+            }), 400
+        
+        # Validate email
+        is_valid, clean_email, error = InputValidator.validate_email(email)
+        if not is_valid:
+            return jsonify({'success': False, 'message': error}), 400
+        
+        email = clean_email
+        
+        # Verify OTP
+        result = otp_manager.verify_otp(email, otp)
+        
+        if result['success']:
+            # Check if user exists in database by email
+            user_query = "SELECT * FROM users WHERE email = %s AND status = 'active'"
+            user = db.execute_query_one(user_query, (email,))
+            
+            if user:
+                # 🔒 SECURITY: Generate JWT token
+                user_dict = dict(user)
+                token = generate_token(user_dict)
+                
+                # Update login count and last login
+                update_query = """
+                    UPDATE users 
+                    SET login_count = login_count + 1, 
+                        last_login = CURRENT_TIMESTAMP 
+                    WHERE email = %s
+                """
+                db.execute_query(update_query, (email,))
+                
+                # Fetch updated user data
+                user = db.execute_query_one(user_query, (email,))
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'OTP verified successfully',
+                    'user': dict(user),
+                    'token': token,  # 🔒 JWT Token
+                    'isNewUser': False,
+                    'loginMethod': 'email'
+                })
+            else:
+                # New user - return success but indicate they need to complete profile
+                return jsonify({
+                    'success': True,
+                    'message': 'OTP verified successfully',
+                    'user': None,
+                    'token': None,
+                    'isNewUser': True,
+                    'email': email,
+                    'loginMethod': 'email'
+                })
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        print(f"❌ Verify Email OTP Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
+        }), 500
+
+@auth_bp.route('/complete-profile-email', methods=['POST'])
+def complete_profile_email():
+    """Complete new user profile via email and generate JWT token"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        name = data.get('name')
+        phone = data.get('phone', '')
+        
+        if not email or not name:
+            return jsonify({'success': False, 'message': 'Email and name are required'}), 400
+        
+        # Validate inputs
+        is_valid, clean_email, error = InputValidator.validate_email(email)
+        if not is_valid:
+            return jsonify({'success': False, 'message': error}), 400
+        
+        is_valid, clean_name, error = InputValidator.validate_name(name)
+        if not is_valid:
+            return jsonify({'success': False, 'message': error}), 400
+        
+        # Validate phone if provided
+        clean_phone = None
+        if phone:
+            is_valid, clean_phone, error = InputValidator.validate_phone(phone)
+            if not is_valid:
+                return jsonify({'success': False, 'message': error}), 400
+        
+        # Create user
+        insert_query = """
+            INSERT INTO users (name, email, phone, status)
+            VALUES (%s, %s, %s, 'active')
+            RETURNING *
+        """
+        user = db.execute_query_one(insert_query, (clean_name, clean_email, clean_phone))
+        
+        if user:
+            # 🔒 SECURITY: Generate JWT token
+            user_dict = dict(user)
+            token = generate_token(user_dict)
+            
+            # Send welcome email
+            try:
+                email_service.send_welcome_email(clean_email, clean_name)
+            except Exception as e:
+                print(f"⚠️ Welcome email failed: {str(e)}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Profile created successfully',
+                'user': user_dict,
+                'token': token,  # 🔒 JWT Token
+                'loginMethod': 'email'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to create user profile'}), 500
+            
+    except Exception as e:
+        print(f"❌ Complete Profile Email Error: {str(e)}")
+        return jsonify({'success': False, 'message': 'Internal server error'}), 500

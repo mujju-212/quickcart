@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Modal, Form, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 
-const ProfileCompletionModal = ({ show, phone, onComplete, onCancel }) => {
+const ProfileCompletionModal = ({ show, phone, email, onComplete, onCancel }) => {
   const { registerUser } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    email: email || '',
+    phone: phone || '',
     dob: ''
   });
   const [loading, setLoading] = useState(false);
@@ -38,17 +39,34 @@ const ProfileCompletionModal = ({ show, phone, onComplete, onCancel }) => {
     setError('');
 
     try {
-      const result = await registerUser(
-        phone,
-        formData.name.trim(),
-        formData.email.trim() || null,
-        formData.dob || null
-      );
-
-      if (result.success) {
-        onComplete(result.user);
+      // If email-based registration, use email endpoint
+      if (email && !phone) {
+        const authService = (await import('../../services/authService')).default;
+        const result = await authService.completeProfileWithEmail(
+          email,
+          formData.name.trim(),
+          formData.phone || ''
+        );
+        
+        if (result.success) {
+          onComplete(result.user);
+        } else {
+          setError(result.message || 'Failed to complete profile');
+        }
       } else {
-        setError(result.error || 'Failed to complete profile');
+        // Phone-based registration
+        const result = await registerUser(
+          phone,
+          formData.name.trim(),
+          formData.email.trim() || null,
+          formData.dob || null
+        );
+
+        if (result.success) {
+          onComplete(result.user);
+        } else {
+          setError(result.error || 'Failed to complete profile');
+        }
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -95,19 +113,41 @@ const ProfileCompletionModal = ({ show, phone, onComplete, onCancel }) => {
             />
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Email Address (Optional)</Form.Label>
-            <Form.Control
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-            />
-            <Form.Text className="text-muted">
-              We'll use this for order updates and offers
-            </Form.Text>
-          </Form.Group>
+          {!email && (
+            <Form.Group className="mb-3">
+              <Form.Label>Email Address (Optional)</Form.Label>
+              <Form.Control
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+              />
+              <Form.Text className="text-muted">
+                We'll use this for order updates and offers
+              </Form.Text>
+            </Form.Group>
+          )}
+
+          {!phone && (
+            <Form.Group className="mb-3">
+              <Form.Label>Phone Number (Optional)</Form.Label>
+              <Form.Control
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setFormData({ ...formData, phone: value });
+                }}
+                placeholder="Enter your 10-digit phone number"
+                maxLength="10"
+              />
+              <Form.Text className="text-muted">
+                Get SMS updates for your orders
+              </Form.Text>
+            </Form.Group>
+          )}
 
           <Form.Group className="mb-4">
             <Form.Label>Date of Birth (Optional)</Form.Label>

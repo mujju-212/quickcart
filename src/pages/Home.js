@@ -53,7 +53,7 @@ const Home = () => {
       
       // Test direct API call for debugging
       try {
-        const directResponse = await fetch('http://localhost:5001/api/categories');
+        const directResponse = await fetch('/api/categories');
         const directData = await directResponse.json();
         console.log('🔍 Direct API test:', directData);
       } catch (directError) {
@@ -153,7 +153,7 @@ const Home = () => {
     window.testCategoriesAPI = async () => {
       try {
         console.log('🧪 Manual API test started...');
-        const response = await fetch('http://localhost:5001/api/categories');
+        const response = await fetch('/api/categories');
         const data = await response.json();
         console.log('🧪 Manual API test result:', data);
         return data;
