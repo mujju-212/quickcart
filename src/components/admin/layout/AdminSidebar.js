@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Nav } from 'react-bootstrap';
-import { FaTachometerAlt, FaTags, FaBoxes, FaPercent, FaImage, FaUsers, FaShoppingCart, FaCog } from 'react-icons/fa';
+import { FaTachometerAlt, FaTags, FaBoxes, FaPercent, FaImage, FaUsers, FaShoppingCart, FaCog, FaFileDownload } from 'react-icons/fa';
 
 const AdminSidebar = ({ activeTab, setActiveTab }) => {
   const menuItems = [
@@ -11,6 +11,7 @@ const AdminSidebar = ({ activeTab, setActiveTab }) => {
     { key: 'offers', label: 'Offers', icon: FaPercent },
     { key: 'banners', label: 'Banners', icon: FaImage },
     { key: 'users', label: 'Users', icon: FaUsers },
+    { key: 'reports', label: 'Reports', icon: FaFileDownload },
     { key: 'settings', label: 'Settings', icon: FaCog }
   ];
 

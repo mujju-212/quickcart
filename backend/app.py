@@ -22,6 +22,7 @@ from backend.routes.banner_routes import banner_bp
 from backend.routes.offer_routes import offer_bp
 from backend.routes.analytics_routes import analytics_bp
 from backend.routes.review_routes import review_bp
+from backend.routes.report_routes import report_bp
 from backend.utils.database import db
 
 # Configure logging
@@ -67,6 +68,7 @@ def create_app():
     app.register_blueprint(offer_bp, url_prefix='/api/offers')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(review_bp, url_prefix='/api/reviews')
+    app.register_blueprint(report_bp, url_prefix='/api/reports')
     
     # Add security headers
     @app.after_request

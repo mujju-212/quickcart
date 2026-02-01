@@ -15,6 +15,7 @@ import OffersManagement from '../components/admin/offers/OffersManagement';
 import BannerManagement from '../components/admin/banners/BannerManagement';
 import Users from '../components/admin/users/Users';
 import AdminSettings from '../components/admin/settings/AdminSettings';
+import ReportsHub from '../components/admin/reports/ReportsHub';
 
 const Admin = () => {
   const { logout, isAdmin, currentUser, adminLogin } = useAuth();
@@ -283,6 +284,8 @@ const Admin = () => {
         return <BannerManagement />;
       case 'users':
         return <Users />;
+      case 'reports':
+        return <ReportsHub />;
       case 'settings':
         return <AdminSettings />;
       default:
