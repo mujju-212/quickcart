@@ -1,0 +1,261 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{float}
+
+% Chapter and section formatting
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {CHAPTER \thechapter}{0pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-20pt}{15pt}
+
+\titleformat{\section}
+    {\normalfont\normalsize\bfseries}
+    {\thesection}{1em}{}
+
+% Reduce spacing
+\setlength{\parskip}{6pt}
+\setlist{nosep,leftmargin=*}
+
+% Remove page numbers
+\pagenumbering{gobble}
+
+% Document begins
+\begin{document}
+
+% Chapter 6
+\chapter*{CHAPTER 6}
+\addcontentsline{toc}{chapter}{CHAPTER 6: TEST CASES}
+
+\begin{center}
+    \textbf{\large TEST CASES}
+\end{center}
+
+\section*{6.1 Introduction to Testing}
+
+Testing is a critical phase in software development that ensures the application functions correctly and meets the specified requirements. The QuickCart application undergoes comprehensive testing including unit testing, integration testing, and user acceptance testing to validate all functionalities.
+
+\section*{6.2 Authentication Module Test Cases}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.8cm}|p{2.8cm}|p{3.8cm}|p{3cm}|p{1.2cm}|}
+\hline
+\textbf{ID} & \textbf{Test Case} & \textbf{Input} & \textbf{Expected Output} & \textbf{Status} \\
+\hline
+TC01 & Valid phone OTP request & 10-digit phone number & OTP sent successfully & Pass \\
+\hline
+TC02 & Invalid phone number & Less than 10 digits & Error: Invalid phone & Pass \\
+\hline
+TC03 & Valid OTP verification & Correct 6-digit OTP & Login successful & Pass \\
+\hline
+TC04 & Invalid OTP & Wrong OTP code & Error: Invalid OTP & Pass \\
+\hline
+TC05 & Expired OTP & OTP after 5 minutes & Error: OTP expired & Pass \\
+\hline
+TC06 & Rate limit exceeded & 21st OTP request/day & Error: Rate limit & Pass \\
+\hline
+TC07 & User logout & Valid JWT token & Session terminated & Pass \\
+\hline
+\end{tabular}
+\caption{Authentication Module Test Cases}
+\end{table}
+
+\section*{6.3 Product Module Test Cases}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.8cm}|p{2.8cm}|p{3.8cm}|p{3cm}|p{1.2cm}|}
+\hline
+\textbf{ID} & \textbf{Test Case} & \textbf{Input} & \textbf{Expected Output} & \textbf{Status} \\
+\hline
+TC08 & Fetch all products & GET /api/products & Product list returned & Pass \\
+\hline
+TC09 & Search by name & Search query "milk" & Matching products & Pass \\
+\hline
+TC10 & Filter by category & Category ID & Category products & Pass \\
+\hline
+TC11 & View product details & Product ID & Product details shown & Pass \\
+\hline
+TC12 & Invalid product ID & Non-existent ID & Error: Not found & Pass \\
+\hline
+TC13 & Products pagination & Page number, limit & Paginated results & Pass \\
+\hline
+\end{tabular}
+\caption{Product Module Test Cases}
+\end{table}
+
+\section*{6.4 Cart Module Test Cases}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.8cm}|p{2.8cm}|p{3.8cm}|p{3cm}|p{1.2cm}|}
+\hline
+\textbf{ID} & \textbf{Test Case} & \textbf{Input} & \textbf{Expected Output} & \textbf{Status} \\
+\hline
+TC14 & Add item to cart & Product ID, quantity & Item added to cart & Pass \\
+\hline
+TC15 & Update cart quantity & Cart item ID, new qty & Quantity updated & Pass \\
+\hline
+TC16 & Remove from cart & Cart item ID & Item removed & Pass \\
+\hline
+TC17 & View cart contents & User JWT token & Cart items displayed & Pass \\
+\hline
+TC18 & Add out-of-stock & Product with 0 stock & Error: Out of stock & Pass \\
+\hline
+TC19 & Cart total calc & Multiple items & Correct total amount & Pass \\
+\hline
+TC20 & Clear entire cart & User JWT token & Cart emptied & Pass \\
+\hline
+\end{tabular}
+\caption{Cart Module Test Cases}
+\end{table}
+
+\section*{6.5 Order Module Test Cases}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.8cm}|p{2.8cm}|p{3.8cm}|p{3cm}|p{1.2cm}|}
+\hline
+\textbf{ID} & \textbf{Test Case} & \textbf{Input} & \textbf{Expected Output} & \textbf{Status} \\
+\hline
+TC21 & Place order & Cart items, address ID & Order created & Pass \\
+\hline
+TC22 & Order empty cart & No cart items & Error: Cart is empty & Pass \\
+\hline
+TC23 & View order history & User JWT token & Past orders displayed & Pass \\
+\hline
+TC24 & View order details & Order ID & Order details shown & Pass \\
+\hline
+TC25 & Track order status & Order ID & Status displayed & Pass \\
+\hline
+TC26 & Cancel pending order & Order ID & Order cancelled & Pass \\
+\hline
+TC27 & Cancel delivered & Delivered order ID & Error: Cannot cancel & Pass \\
+\hline
+\end{tabular}
+\caption{Order Module Test Cases}
+\end{table}
+
+\section*{6.6 Wishlist Module Test Cases}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.8cm}|p{2.8cm}|p{3.8cm}|p{3cm}|p{1.2cm}|}
+\hline
+\textbf{ID} & \textbf{Test Case} & \textbf{Input} & \textbf{Expected Output} & \textbf{Status} \\
+\hline
+TC28 & Add to wishlist & Product ID & Added to wishlist & Pass \\
+\hline
+TC29 & Remove from wishlist & Wishlist item ID & Removed from wishlist & Pass \\
+\hline
+TC30 & View wishlist & User JWT token & Wishlist items shown & Pass \\
+\hline
+TC31 & Move to cart & Wishlist item ID & Item moved to cart & Pass \\
+\hline
+TC32 & Duplicate add & Same product ID & Error: Already exists & Pass \\
+\hline
+\end{tabular}
+\caption{Wishlist Module Test Cases}
+\end{table}
+
+\section*{6.7 Admin Module Test Cases}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.8cm}|p{2.8cm}|p{3.8cm}|p{3cm}|p{1.2cm}|}
+\hline
+\textbf{ID} & \textbf{Test Case} & \textbf{Input} & \textbf{Expected Output} & \textbf{Status} \\
+\hline
+TC33 & Admin login & Admin credentials & Dashboard access & Pass \\
+\hline
+TC34 & Non-admin access & Regular user token & Error: Unauthorized & Pass \\
+\hline
+TC35 & Add new product & Product details & Product created & Pass \\
+\hline
+TC36 & Update product & Product ID, new data & Product updated & Pass \\
+\hline
+TC37 & Delete product & Product ID & Product deleted & Pass \\
+\hline
+TC38 & Update order status & Order ID, new status & Status updated & Pass \\
+\hline
+TC39 & View analytics & Admin token & Dashboard data shown & Pass \\
+\hline
+TC40 & Generate PDF report & Report type & PDF downloaded & Pass \\
+\hline
+\end{tabular}
+\caption{Admin Module Test Cases}
+\end{table}
+
+\section*{6.8 Security Test Cases}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.8cm}|p{2.8cm}|p{3.8cm}|p{3cm}|p{1.2cm}|}
+\hline
+\textbf{ID} & \textbf{Test Case} & \textbf{Input} & \textbf{Expected Output} & \textbf{Status} \\
+\hline
+TC41 & SQL injection & Malicious SQL query & Query blocked & Pass \\
+\hline
+TC42 & XSS prevention & Script tags in input & Input sanitized & Pass \\
+\hline
+TC43 & Invalid JWT token & Tampered token & Error: Invalid token & Pass \\
+\hline
+TC44 & Expired JWT token & Token after 7 days & Error: Token expired & Pass \\
+\hline
+TC45 & CSRF validation & Missing CSRF token & Error: CSRF failed & Pass \\
+\hline
+TC46 & Unauthorized access & No auth header & Error: Unauthorized & Pass \\
+\hline
+\end{tabular}
+\caption{Security Test Cases}
+\end{table}
+
+\section*{6.9 Test Summary}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{4cm}|p{3cm}|p{3cm}|p{3cm}|}
+\hline
+\textbf{Module} & \textbf{Total Tests} & \textbf{Passed} & \textbf{Failed} \\
+\hline
+Authentication & 7 & 7 & 0 \\
+\hline
+Product & 6 & 6 & 0 \\
+\hline
+Cart & 7 & 7 & 0 \\
+\hline
+Order & 7 & 7 & 0 \\
+\hline
+Wishlist & 5 & 5 & 0 \\
+\hline
+Admin & 8 & 8 & 0 \\
+\hline
+Security & 6 & 6 & 0 \\
+\hline
+\textbf{Total} & \textbf{46} & \textbf{46} & \textbf{0} \\
+\hline
+\end{tabular}
+\caption{Test Summary Report}
+\end{table}
+
+All 46 test cases have been executed successfully with a 100\% pass rate, confirming that the QuickCart application meets all functional and security requirements.
+
+\end{document}

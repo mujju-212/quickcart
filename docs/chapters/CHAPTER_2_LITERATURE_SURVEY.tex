@@ -1,0 +1,114 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+% Page style with header and footer
+\pagestyle{fancy}
+\fancyhf{}
+
+% Header with double line
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{MINI PROJECT(BIS586)}
+\fancyhead[R]{QUICKCART -- ONLINE GROCERY DELIVERY}
+
+% Add double line effect in header
+\renewcommand{\headrule}{%
+    \hrule height 0.4pt \vspace{1pt}
+    \hrule height 0.4pt
+}
+
+% Footer with double line
+\renewcommand{\footrulewidth}{0.4pt}
+\fancyfoot[L]{Dept.of ISE, HKBKCE}
+\fancyfoot[C]{\thepage}
+\fancyfoot[R]{AY 2025-2026}
+
+% Add double line effect in footer
+\renewcommand{\footrule}{%
+    \hrule height 0.4pt \vspace{1pt}
+    \hrule height 0.4pt \vspace{5pt}
+}
+
+% Chapter and section formatting
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {CHAPTER \thechapter}{0pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
+
+\titleformat{\section}
+    {\normalfont\normalsize\bfseries}
+    {\thesection}{1em}{}
+
+% Line spacing
+\onehalfspacing
+\setlength{\parskip}{8pt}
+
+% Document begins
+\begin{document}
+
+% Set page number
+\setcounter{page}{13}
+
+% Chapter 2
+\chapter*{CHAPTER 2}
+\addcontentsline{toc}{chapter}{CHAPTER 2: LITERATURE SURVEY}
+
+\begin{center}
+    \textbf{\large LITERATURE SURVEY}
+\end{center}
+
+\section*{2.1 Introduction}
+
+A literature survey provides insights into existing research, technologies, and methodologies relevant to the problem domain. This chapter reviews literature related to e-commerce platforms, web development frameworks, authentication mechanisms, and database systems that form the foundation of QuickCart.
+
+\section*{2.2 E-Commerce Platform Development}
+
+Electronic commerce has revolutionized retail by enabling businesses to sell products online. According to Laudon and Traver (2021), e-commerce success depends on user experience, performance, security, and reliability. Studies by Nielsen Norman Group show that page load time significantly impacts user retention—a one-second delay can result in 7\% reduction in conversions. This influenced QuickCart's use of lazy loading and optimized queries.
+
+\section*{2.3 Frontend Development Technologies}
+
+\textbf{React.js Framework:} Developed by Facebook (Meta), React.js is among the most popular JavaScript libraries for building user interfaces. Its component-based architecture enables reusable UI components and improved maintainability. React Hooks (useState, useEffect, useContext) enable functional components to manage state efficiently. QuickCart leverages these extensively.
+
+\textbf{Context API:} React's built-in Context API provides simpler state management than Redux. QuickCart implements AuthContext, CartContext, WishlistContext, and LocationContext for managing application state.
+
+\textbf{React Router:} Version 6 provides client-side routing with lazy loading for code splitting, reducing initial bundle size.
+
+\section*{2.4 Backend Development Technologies}
+
+\textbf{Flask Framework:} Flask is a lightweight Python web framework following the microframework philosophy. According to JetBrains Python Survey, Flask ranks among top frameworks. Its Blueprint feature allows modular route organization—QuickCart uses Blueprints for authentication, products, orders, cart, and analytics modules.
+
+\textbf{RESTful API:} REST architecture uses HTTP methods (GET, POST, PUT, DELETE) for resource operations. QuickCart's backend follows REST principles with resource-based endpoints.
+
+\section*{2.5 Authentication and Security}
+
+\textbf{JWT Authentication:} JSON Web Tokens (RFC 7519) enable stateless authentication. QuickCart implements JWT with HS256 algorithm and 7-day expiry in HTTP-only cookies.
+
+\textbf{OTP Authentication:} SMS-based OTP provides security-convenience balance. QuickCart uses Twilio and Fast2SMS with 20 OTPs/day rate limiting.
+
+\textbf{Security Measures:} Following OWASP guidelines, QuickCart implements input validation (Bleach library), parameterized queries, CSRF protection, rate limiting, and security headers.
+
+\section*{2.6 Database Management}
+
+\textbf{PostgreSQL:} An advanced open-source RDBMS known for reliability and ACID compliance. QuickCart's schema follows third normal form (3NF) with indexes on user\_id, phone, order\_date, and status columns.
+
+\section*{2.7 Related Work}
+
+Existing platforms like BigBasket, Blinkit, Zepto, and Amazon Fresh dominate online grocery. However, they present challenges for local vendors: high commission fees (15-30\%), loss of brand identity, and limited control. QuickCart addresses these gaps with a vendor-centric platform.
+
+\section*{2.8 Conclusion}
+
+The technologies chosen—React.js, Flask, PostgreSQL, and JWT—represent industry-standard solutions. The review highlights market gaps for vendor-friendly solutions that empower local businesses.
+
+\end{document}

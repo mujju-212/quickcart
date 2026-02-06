@@ -1,0 +1,144 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{float}
+
+% Chapter and section formatting
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {CHAPTER \thechapter}{0pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-20pt}{15pt}
+
+\titleformat{\section}
+    {\normalfont\normalsize\bfseries}
+    {\thesection}{1em}{}
+
+% Reduce spacing
+\setlength{\parskip}{6pt}
+
+% Remove page numbers
+\pagenumbering{gobble}
+
+% Image path
+\graphicspath{{D:/AVTIVE PROJ/miniproject/img/}}
+
+% Document begins
+\begin{document}
+
+% Chapter 7
+\chapter*{CHAPTER 7}
+\addcontentsline{toc}{chapter}{CHAPTER 7: SCREENSHOTS}
+
+\begin{center}
+    \textbf{\large SCREENSHOTS}
+\end{center}
+
+\section*{7.1 Customer Module Screenshots}
+
+The following screenshots demonstrate the user interface of the QuickCart application from the customer's perspective.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Home Page with Banners.png}
+    \caption{Home Page with Promotional Banners}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Categories.png}
+    \caption{Product Categories Display}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Product Listing.png}
+    \caption{Product Listing Page}
+\end{figure}
+
+\newpage
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Product Details Page.png}
+    \caption{Product Details Page}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Shopping Cart.png}
+    \caption{Shopping Cart Page}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Checkout Page.png}
+    \caption{Checkout Page with Delivery Address}
+\end{figure}
+
+\newpage
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Order ConfirmationHistory.png}
+    \caption{Order Confirmation and Order History}
+\end{figure}
+
+\section*{7.2 Admin Module Screenshots}
+
+The following screenshots demonstrate the administrative interface of the QuickCart application.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Admin Dashboard (Analytics).png}
+    \caption{Admin Dashboard with Analytics}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Product Management.png}
+    \caption{Product Management Panel}
+\end{figure}
+
+\newpage
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Order Management.png}
+    \caption{Order Management Panel}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{user.png}
+    \caption{User List Management Panel}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{CategoryBanner Management.png}
+    \caption{Category and Banner Management}
+\end{figure}
+
+\newpage
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{banners.png}
+    \caption{Promotional Banners Management}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{offer.png}
+    \caption{Offers and Discounts Management}
+\end{figure}
+
+\end{document}

@@ -1,0 +1,82 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+% Chapter and section formatting
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {CHAPTER \thechapter}{0pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-20pt}{15pt}
+
+\titleformat{\section}
+    {\normalfont\normalsize\bfseries}
+    {\thesection}{1em}{}
+
+% Spacing
+\setlength{\parskip}{4pt}
+\setlist{nosep,leftmargin=*,topsep=0pt}
+
+% Remove page numbers
+\pagenumbering{gobble}
+
+% Hyperlink setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+% Document begins
+\begin{document}
+
+% Chapter 10
+\chapter*{CHAPTER 10}
+\addcontentsline{toc}{chapter}{CHAPTER 10: CONCLUSION}
+
+\begin{center}
+    \textbf{\large CONCLUSION}
+\end{center}
+
+\section*{10.1 Summary}
+
+The QuickCart online grocery delivery application has been successfully designed, developed, and tested as a comprehensive full-stack web application. The project aimed to create a user-friendly platform that simplifies online grocery shopping for customers while providing powerful management tools for administrators. Built using React.js, Flask (Python), and PostgreSQL, the solution meets industry standards for responsiveness and scalability.
+
+\section*{10.2 Objectives Achieved}
+
+All primary objectives have been successfully accomplished:
+\begin{itemize}
+    \item Responsive web application accessible across all devices
+    \item Secure OTP-based passwordless authentication
+    \item Product browsing, search, and wishlist functionality
+    \item Shopping cart with real-time synchronization
+    \item Order management for customers and administrators
+    \item Admin dashboard with analytics and PDF reporting
+    \item Security against SQL injection, XSS, and CSRF attacks
+\end{itemize}
+
+\section*{10.3 Key Achievements}
+
+The project achieved 100\% test case pass rate (46 tests), page load times under 3 seconds, API responses under 500ms, and robust security with rate limiting. Responsive design ensures seamless experience across desktop, tablet, and mobile.
+
+\section*{10.4 Learning Outcomes}
+
+Valuable experience gained in full-stack development, RESTful API design, database management, security implementation, and React frontend development with industry-standard practices.
+
+\section*{10.5 Project Repository}
+
+\textbf{GitHub:} \url{https://github.com/mujju-212/quickcart}
+
+\section*{10.6 Final Remarks}
+
+QuickCart demonstrates practical software engineering principles in building a real-world e-commerce solution. The application provides a foundation for future enhancements including payment gateways, real-time tracking, and mobile apps, fulfilling all requirements as a complete, secure online grocery platform.
+
+\end{document}

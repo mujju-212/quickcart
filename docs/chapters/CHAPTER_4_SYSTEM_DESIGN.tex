@@ -1,0 +1,140 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{float}
+
+% Chapter and section formatting
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {CHAPTER \thechapter}{0pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-20pt}{15pt}
+
+\titleformat{\section}
+    {\normalfont\normalsize\bfseries}
+    {\thesection}{1em}{}
+
+% Reduce spacing
+\setlength{\parskip}{6pt}
+
+% Image path
+\graphicspath{{D:/AVTIVE PROJ/miniproject/}}
+
+% Document begins
+\begin{document}
+
+% Set page number
+\setcounter{page}{18}
+
+% Chapter 4
+\chapter*{CHAPTER 4}
+\addcontentsline{toc}{chapter}{CHAPTER 4: SYSTEM DESIGN}
+
+\begin{center}
+    \textbf{\large SYSTEM DESIGN}
+\end{center}
+
+\section*{4.1 System Architecture}
+
+The QuickCart application follows a three-tier architecture that separates the presentation layer, business logic layer, and data layer. This architectural pattern ensures modularity, scalability, and maintainability of the system.
+
+The \textbf{Presentation Layer} comprises the React.js frontend application that handles user interface rendering and client-side interactions. The \textbf{Business Logic Layer} contains the Flask REST API server that processes requests, implements authentication, and manages business rules. The \textbf{Data Layer} consists of the PostgreSQL database that stores all persistent data including users, products, orders, and transactions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{System Architecture Diagram.png}
+    \caption{System Architecture Diagram}
+\end{figure}
+
+\section*{4.2 Entity Relationship Diagram}
+
+The ER diagram illustrates the database structure and relationships between entities in the QuickCart system. The primary entities include Users, Products, Categories, Orders, Cart Items, Wishlist Items, and User Addresses.
+
+Key relationships include: Users can have multiple Orders, Cart Items, and Wishlist Items. Each Product belongs to one Category. Orders contain multiple Order Items, each referencing a Product. User Addresses are linked to Users for delivery management.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{ER Diagram (Entity Relationship Diagram).png}
+    \caption{Entity Relationship Diagram}
+\end{figure}
+
+\section*{4.3 Data Flow Diagrams}
+
+\subsection*{4.3.1 Level 0 - Context Diagram}
+
+The context diagram provides a high-level overview of the QuickCart system, showing the system as a single process and its interactions with external entities. External entities include Customers who browse and purchase products, Administrators who manage the platform, and the SMS Gateway service for OTP delivery.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Data Flow Diagram (DFD) - Level 0 (Context Diagram).png}
+    \caption{DFD Level 0 - Context Diagram}
+\end{figure}
+
+\subsection*{4.3.2 Level 1 - Detailed DFD}
+
+The Level 1 DFD decomposes the system into major processes including User Authentication, Product Management, Cart Management, Order Processing, and Admin Operations. Each process interacts with relevant data stores and external entities to perform specific functions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Data Flow Diagram (DFD) - Level 1.png}
+    \caption{DFD Level 1 - Detailed Data Flow}
+\end{figure}
+
+\section*{4.4 Use Case Diagram}
+
+The Use Case diagram identifies the functional requirements from the perspective of users. Two primary actors interact with the system: Customers and Administrators.
+
+\textbf{Customer Use Cases:} Register/Login with OTP, Browse Products, Search Products, Add to Cart, Manage Wishlist, Checkout, Track Orders, View Order History, and Manage Delivery Addresses.
+
+\textbf{Admin Use Cases:} Admin Login, Manage Products (CRUD), Manage Categories, View and Update Orders, Manage Banners and Offers, View Analytics Dashboard, Generate Reports, and View User Information.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Use Case Diagram.png}
+    \caption{Use Case Diagram}
+\end{figure}
+
+\section*{4.5 Sequence Diagrams}
+
+\subsection*{4.5.1 User Login Flow}
+
+The sequence diagram illustrates the OTP-based authentication process. When a user enters their phone number, the frontend sends a request to the backend, which validates the rate limit, generates an OTP, stores it in the database, and sends it via SMS Gateway. Upon OTP verification, the backend generates a JWT token and returns it to the frontend for session management.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Sequence Diagram - User Login Flow.png}
+    \caption{Sequence Diagram - User Login Flow}
+\end{figure}
+
+\subsection*{4.5.2 Place Order Flow}
+
+This sequence diagram depicts the order placement process. The customer initiates checkout, the system fetches cart items and displays the order summary. After address selection and order confirmation, the backend creates order records, order items, clears the cart, updates product stock, and returns confirmation to the customer.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Sequence Diagram - Place Order Flow.png}
+    \caption{Sequence Diagram - Place Order Flow}
+\end{figure}
+
+\section*{4.6 Design Principles}
+
+The QuickCart system design adheres to the following principles:
+
+\textbf{Separation of Concerns:} Each layer handles specific responsibilities - UI rendering, business logic, and data persistence are clearly separated.
+
+\textbf{RESTful API Design:} The backend exposes stateless REST endpoints following HTTP conventions for predictable and scalable communication.
+
+\textbf{Component-Based Architecture:} The React frontend uses reusable components promoting code reusability and maintainability.
+
+\textbf{Security by Design:} Authentication, authorization, input validation, and protection against common vulnerabilities are integrated throughout the design.
+
+\textbf{Scalability:} The stateless architecture and modular design allow horizontal scaling of application servers and database optimization.
+
+\end{document}

@@ -1,0 +1,192 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{array}
+\usepackage{enumitem}
+
+% Chapter and section formatting
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {CHAPTER \thechapter}{0pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-20pt}{15pt}
+
+\titleformat{\section}
+    {\normalfont\normalsize\bfseries}
+    {\thesection}{1em}{}
+
+% Reduce spacing
+\setlength{\parskip}{6pt}
+\setlist{nosep,leftmargin=*}
+
+% Remove page numbers
+\pagenumbering{gobble}
+
+% Document begins
+\begin{document}
+
+% Chapter 5
+\chapter*{CHAPTER 5}
+\addcontentsline{toc}{chapter}{CHAPTER 5: IMPLEMENTATION}
+
+\begin{center}
+    \textbf{\large IMPLEMENTATION}
+\end{center}
+
+\section*{5.1 Technologies Used}
+
+The QuickCart application is built using modern web technologies that ensure performance, scalability, and maintainability.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|p{3cm}|p{3.5cm}|p{6.5cm}|}
+\hline
+\textbf{Category} & \textbf{Technology} & \textbf{Purpose} \\
+\hline
+Frontend & React.js 18.2 & Component-based UI development \\
+\hline
+Routing & React Router v6 & Client-side navigation and routing \\
+\hline
+UI Framework & React Bootstrap 5 & Responsive design components \\
+\hline
+Backend & Flask 3.0 & RESTful API development \\
+\hline
+Database & PostgreSQL 16 & Relational data storage \\
+\hline
+Authentication & PyJWT & JSON Web Token generation \\
+\hline
+SMS Service & Twilio/Fast2SMS & OTP delivery mechanism \\
+\hline
+PDF Generation & jsPDF & Report export functionality \\
+\hline
+\end{tabular}
+\caption{Technologies Used in QuickCart}
+\end{table}
+
+\section*{5.2 Frontend Implementation}
+
+The frontend is developed using React.js following a component-based architecture. The application is organized into reusable components that manage specific UI elements and functionalities.
+
+\textbf{Project Structure:}
+The source code is organized under the \texttt{src/} directory with subdirectories for components, pages, context, hooks, services, and utilities. Components are further categorized into modules such as auth, product, cart, order, admin, and common.
+
+\textbf{State Management:}
+React Context API is used for global state management. Four primary contexts manage application state:
+\begin{itemize}
+    \item \textbf{AuthContext} - Manages user authentication state, login/logout functions, and JWT token handling
+    \item \textbf{CartContext} - Handles shopping cart operations including add, update, remove, and cart synchronization
+    \item \textbf{WishlistContext} - Manages wishlist items with add/remove functionality
+    \item \textbf{LocationContext} - Handles user location and delivery address selection
+\end{itemize}
+
+\textbf{Routing Implementation:}
+React Router v6 handles client-side routing with protected routes for authenticated users. The routing configuration includes public routes (Home, Products, Login) and private routes (Cart, Checkout, Orders, Account) that require authentication.
+
+\textbf{API Integration:}
+The frontend communicates with the backend through a centralized API service layer. Axios or Fetch API handles HTTP requests with JWT tokens included in request headers for authenticated endpoints.
+
+\section*{5.3 Backend Implementation}
+
+The backend is implemented using Flask framework following RESTful API design principles. The application is structured using Flask Blueprints to organize routes into logical modules.
+
+\textbf{Application Structure:}
+The backend code resides in the \texttt{backend/} directory with organized subdirectories:
+\begin{itemize}
+    \item \texttt{routes/} - API endpoint definitions (auth, products, cart, orders, admin)
+    \item \texttt{utils/} - Helper modules (authentication, validation, database)
+    \item \texttt{config/} - Application configuration settings
+    \item \texttt{services/} - External service integrations (SMS service)
+\end{itemize}
+
+\textbf{API Endpoints:}
+The backend exposes RESTful endpoints organized by functionality:
+\begin{itemize}
+    \item \texttt{/api/auth/*} - User registration, OTP sending, OTP verification
+    \item \texttt{/api/products/*} - Product listing, search, category filtering
+    \item \texttt{/api/cart/*} - Cart operations (get, add, update, remove)
+    \item \texttt{/api/orders/*} - Order creation, history, status updates
+    \item \texttt{/api/admin/*} - Dashboard analytics, product management, reports
+\end{itemize}
+
+\textbf{Authentication Flow:}
+The authentication system implements OTP-based passwordless login. When a user requests login, the system generates a 6-digit OTP, stores it with expiry time in the database, and sends it via SMS gateway. Upon verification, a JWT token is generated with user information and 7-day expiry, which is returned to the frontend for session management.
+
+\section*{5.4 Database Implementation}
+
+PostgreSQL serves as the primary database with a normalized schema design following Third Normal Form (3NF) principles.
+
+\textbf{Database Schema:}
+The database consists of 10 primary tables designed for data integrity and query efficiency:
+\begin{itemize}
+    \item \textbf{users} - Stores user information (phone, name, email, admin flag)
+    \item \textbf{products} - Product catalog with pricing and inventory
+    \item \textbf{categories} - Product categorization hierarchy
+    \item \textbf{orders} - Order records with status tracking
+    \item \textbf{order\_items} - Individual items within each order
+    \item \textbf{cart\_items} - Shopping cart contents per user
+    \item \textbf{wishlist\_items} - User wishlist entries
+    \item \textbf{user\_addresses} - Multiple delivery addresses per user
+    \item \textbf{banners} - Promotional banner content
+    \item \textbf{offers} - Discount and promotional offers
+\end{itemize}
+
+\textbf{Database Operations:}
+All database operations use parameterized queries to prevent SQL injection. The psycopg2 library handles PostgreSQL connectivity with connection pooling for efficient resource utilization. Transactions ensure ACID compliance for critical operations like order placement.
+
+\section*{5.5 Security Implementation}
+
+Security is implemented at multiple layers to protect user data and prevent common vulnerabilities.
+
+\textbf{Authentication Security:}
+\begin{itemize}
+    \item JWT tokens signed with HS256 algorithm using secret key
+    \item Token expiry set to 7 days with refresh mechanism
+    \item OTP rate limiting: maximum 20 requests per day per phone number
+    \item OTP expiry: 5 minutes validity period
+\end{itemize}
+
+\textbf{Input Validation:}
+All user inputs are validated and sanitized before processing. The Bleach library sanitizes HTML content to prevent XSS attacks. Phone numbers, email addresses, and other fields are validated against defined patterns.
+
+\textbf{CSRF Protection:}
+Cross-Site Request Forgery protection is implemented for state-changing operations. CSRF tokens are generated and validated for POST, PUT, and DELETE requests.
+
+\textbf{Security Headers:}
+HTTP security headers are configured including X-Frame-Options, X-Content-Type-Options, and X-XSS-Protection to mitigate common web vulnerabilities.
+
+\section*{5.6 Module Description}
+
+\textbf{User Module:}
+Handles user registration, authentication, profile management, and address management. Users can register with phone number, login via OTP, update profile information, and manage multiple delivery addresses.
+
+\textbf{Product Module:}
+Manages product catalog display, search functionality, and category-based filtering. Products are displayed with images, pricing, stock availability, and detailed descriptions.
+
+\textbf{Cart Module:}
+Implements shopping cart functionality including adding products, updating quantities, removing items, and calculating totals. Cart data persists in the database for logged-in users.
+
+\textbf{Order Module:}
+Handles the complete order lifecycle from checkout to delivery. Features include order placement, status tracking, order history, and order cancellation.
+
+\textbf{Wishlist Module:}
+Allows users to save products for future purchase. Users can add/remove items and move wishlist items to cart.
+
+\textbf{Admin Module:}
+Provides administrative functionality including dashboard analytics, product CRUD operations, category management, order management, banner management, offer configuration, and PDF report generation.
+
+\section*{5.7 Integration Services}
+
+\textbf{SMS Gateway Integration:}
+The application integrates with Twilio and Fast2SMS for OTP delivery. The SMS service module abstracts the gateway implementation, allowing easy switching between providers based on availability and cost.
+
+\textbf{PDF Report Generation:}
+The jsPDF library generates PDF reports for analytics and business documentation. Reports include sales summaries, order details, and inventory status with proper formatting and branding.
+
+\end{document}

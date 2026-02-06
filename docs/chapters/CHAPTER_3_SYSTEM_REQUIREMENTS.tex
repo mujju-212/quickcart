@@ -1,0 +1,211 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+% Page style with header and footer
+\pagestyle{fancy}
+\fancyhf{}
+
+% Header with double line
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{MINI PROJECT(BIS586)}
+\fancyhead[R]{QUICKCART -- ONLINE GROCERY DELIVERY}
+
+% Add double line effect in header
+\renewcommand{\headrule}{%
+    \hrule height 0.4pt \vspace{1pt}
+    \hrule height 0.4pt
+}
+
+% Footer with double line
+\renewcommand{\footrulewidth}{0.4pt}
+\fancyfoot[L]{Dept.of ISE, HKBKCE}
+\fancyfoot[C]{\thepage}
+\fancyfoot[R]{AY 2025-2026}
+
+% Add double line effect in footer
+\renewcommand{\footrule}{%
+    \hrule height 0.4pt \vspace{1pt}
+    \hrule height 0.4pt \vspace{5pt}
+}
+
+% Chapter and section formatting
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {CHAPTER \thechapter}{0pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
+
+\titleformat{\section}
+    {\normalfont\normalsize\bfseries}
+    {\thesection}{1em}{}
+
+% Reduce spacing
+\setlength{\parskip}{6pt}
+\setlist{nosep,leftmargin=*}
+
+% Document begins
+\begin{document}
+
+% Set page number
+\setcounter{page}{15}
+
+% Chapter 3
+\chapter*{CHAPTER 3}
+\addcontentsline{toc}{chapter}{CHAPTER 3: SYSTEM REQUIREMENT SPECIFICATION}
+
+\begin{center}
+    \textbf{\large SYSTEM REQUIREMENT SPECIFICATION}
+\end{center}
+
+\section*{3.1 Hardware Requirements}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|p{3cm}|p{4cm}|p{4cm}|}
+\hline
+\textbf{Component} & \textbf{Minimum} & \textbf{Recommended} \\
+\hline
+Processor & Intel Core i3 / AMD Ryzen 3 & Intel Core i5 / AMD Ryzen 5 \\
+\hline
+RAM & 4 GB & 8 GB or higher \\
+\hline
+Storage & 20 GB free space & 50 GB SSD \\
+\hline
+Display & 1366 x 768 & 1920 x 1080 \\
+\hline
+Network & Broadband & High-speed internet \\
+\hline
+\end{tabular}
+\caption{Hardware Requirements}
+\end{table}
+
+\section*{3.2 Software Requirements}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|p{3.5cm}|p{4.5cm}|p{3.5cm}|}
+\hline
+\textbf{Category} & \textbf{Software} & \textbf{Version} \\
+\hline
+Operating System & Windows 10/11, Ubuntu, macOS & Latest stable \\
+\hline
+Frontend Framework & React.js & 18.2.0 \\
+\hline
+Backend Framework & Flask (Python) & 3.0 \\
+\hline
+Database & PostgreSQL & 16.x \\
+\hline
+Package Manager & npm, pip & Latest \\
+\hline
+Version Control & Git & 2.x \\
+\hline
+Code Editor & VS Code & Latest \\
+\hline
+\end{tabular}
+\caption{Software Requirements}
+\end{table}
+
+\textbf{Key Dependencies:} React Router DOM v6, React Bootstrap v5, jsPDF, Flask-CORS, PyJWT, psycopg2, Twilio/Fast2SMS, Bleach.
+
+\section*{3.3 Functional Requirements}
+
+\textbf{Customer Module:}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|p{1.2cm}|p{3cm}|p{8cm}|}
+\hline
+\textbf{ID} & \textbf{Requirement} & \textbf{Description} \\
+\hline
+FR-01 & User Authentication & Register/login using phone number with OTP verification \\
+\hline
+FR-02 & Browse Products & Display products by categories with search functionality \\
+\hline
+FR-03 & Shopping Cart & Add, update, remove items with real-time price calculation \\
+\hline
+FR-04 & Wishlist & Save products for future purchase \\
+\hline
+FR-05 & Checkout \& Orders & Process orders, track status, view order history \\
+\hline
+FR-06 & Address Management & Multiple delivery addresses per user \\
+\hline
+\end{tabular}
+\caption{Customer Functional Requirements}
+\end{table}
+
+\textbf{Admin Module:}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|p{1.2cm}|p{3cm}|p{8cm}|}
+\hline
+\textbf{ID} & \textbf{Requirement} & \textbf{Description} \\
+\hline
+FR-07 & Dashboard & Real-time analytics, sales statistics, order metrics \\
+\hline
+FR-08 & Product Management & CRUD operations for products with images and pricing \\
+\hline
+FR-09 & Order Management & View orders, update status, track deliveries \\
+\hline
+FR-10 & User Management & View customer list, activity monitoring \\
+\hline
+FR-11 & Promotions & Banner and offer management with discount configuration \\
+\hline
+FR-12 & Reports & Generate PDF reports for business documentation \\
+\hline
+\end{tabular}
+\caption{Admin Functional Requirements}
+\end{table}
+
+\section*{3.4 Non-Functional Requirements}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|p{2.5cm}|p{10.5cm}|}
+\hline
+\textbf{Category} & \textbf{Requirements} \\
+\hline
+Performance & Page load $<$ 3 seconds, API response $<$ 500ms \\
+\hline
+Scalability & Support 1000+ concurrent users \\
+\hline
+Availability & 99\% uptime guarantee \\
+\hline
+Security & JWT authentication (7-day expiry), OTP rate limiting (20/day), bcrypt password hashing, CSRF protection \\
+\hline
+Usability & Responsive design for mobile, tablet, desktop \\
+\hline
+Compatibility & Chrome, Firefox, Safari, Edge browser support \\
+\hline
+Reliability & ACID-compliant PostgreSQL database \\
+\hline
+\end{tabular}
+\caption{Non-Functional Requirements}
+\end{table}
+
+\section*{3.5 Technical Requirements}
+
+\textbf{Architecture:} Three-tier architecture (presentation, business logic, data layers), RESTful API design, stateless backend with JWT session management, component-based React frontend.
+
+\textbf{Database:} PostgreSQL with normalized schema (3NF), indexed columns for query optimization, foreign key constraints, trigger-based timestamp updates.
+
+\textbf{Security:} HTTPS protocol, JWT with HS256 algorithm, CSRF token protection, input validation (Bleach library), parameterized queries for SQL injection prevention, rate limiting, security headers (X-Frame-Options, X-Content-Type-Options).
+
+\textbf{API \& Integration:} RESTful endpoints with JSON payloads, Bearer token authentication, CORS configuration, SMS gateway integration (Twilio/Fast2SMS), PDF generation (jsPDF).
+
+\end{document}

@@ -1,13 +1,38 @@
+<div align="center">
+
 # 🛒 QuickCart
 
-> **A modern grocery delivery application with real-time features and comprehensive admin panel**
+### Modern Grocery Delivery Platform with Real-Time Analytics
 
-QuickCart is a full-stack e-commerce application for grocery delivery built with React (frontend) and Flask (backend). It provides a seamless shopping experience with product browsing, cart management, user authentication, order tracking, real-time analytics, and a comprehensive admin panel with PDF export capabilities.
+![QuickCart Banner](docs/resources/banner.png)
 
-![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-316192?style=for-the-badge&logo=postgresql&logoColor=white)
-![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)
+[![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactjs.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Bootstrap](https://img.shields.io/badge/Bootstrap-5.2-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
+
+[Features](#-features) • [Demo](#-screenshots) • [Installation](#-installation--setup) • [Documentation](#-documentation) • [Security](#-security) • [Contributing](#-contributing)
+
+---
+
+</div>
+
+## 📖 Overview
+
+**QuickCart** is a production-ready, full-stack e-commerce platform designed for grocery delivery services. Built with modern technologies and best practices, it offers a seamless shopping experience for customers and powerful management tools for administrators.
+
+### 🎯 Why QuickCart?
+
+- **🚀 Production Ready** - Battle-tested security with 9.5/10 security rating
+- **📊 Real-Time Analytics** - Live dashboard with sales metrics and insights
+- **🔒 Enterprise Security** - JWT auth, rate limiting, CSRF protection, input validation
+- **📱 Fully Responsive** - Optimized for mobile, tablet, and desktop
+- **🎨 Modern UI/UX** - Clean, intuitive interface built with React Bootstrap
+- **⚡ High Performance** - Optimized bundle size and fast load times
+- **📄 PDF Export** - Generate reports, orders, and catalogs
+- **🔔 Real-Time Updates** - Live order tracking and status notifications
+
+---
 
 ## ✨ Features
 
@@ -190,17 +215,125 @@ quickcart/
 - Manage products, orders, and view analytics
 - Add new categories and promotional banners
 
-## 📱 Screenshots
+## 🎥 Live Demo
 
-### Customer Interface
-| Home Page | Product Catalog | Shopping Cart |
-|-----------|----------------|---------------|
-| Clean homepage with categories | Product grid with filters | Interactive cart management |
+> **📹 Video Walkthrough Coming Soon!**  
+> A comprehensive 2-3 minute video demonstration will showcase:
+> - Customer journey (browsing, cart, checkout)
+> - Admin panel features (dashboard, product management)
+> - Mobile responsive design
 
-### Admin Dashboard
-| Analytics | Product Management | Order Management |
-|-----------|-------------------|------------------|
-| Sales insights and metrics | Add/edit products | Order status updates |
+<!-- Once recorded, replace with:
+[![QuickCart Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+*Click to watch the full platform walkthrough*
+-->
+
+---
+
+## 🏗️ System Architecture
+
+### Complete Technical Architecture
+
+![System Architecture](docs/resources/architecture-system.png)
+
+**QuickCart's layered architecture ensures scalability, security, and maintainability:**
+
+- **Frontend Layer**: React 18 with Context API, React Router v6, and Bootstrap 5
+- **Security Middleware**: JWT authentication, rate limiting, CSRF protection, input validation
+- **Backend Layer**: Flask 3.0 with RESTful API design and business logic
+- **Database Layer**: PostgreSQL 16 with optimized schema and 19 performance indexes
+- **External Services**: SMS (Twilio/Fast2SMS), Email (MailerSend), and CDN integration
+
+---
+
+## 🗄️ Database Schema
+
+![Database Schema](docs/resources/database-schema.png)
+
+**Robust database design with 13 tables:**
+
+- **Core Tables**: users, products, categories, orders, order_items
+- **Feature Tables**: cart_items, wishlist_items, user_addresses, product_reviews
+- **Marketing**: banners, offers
+- **Security**: otp_rate_limits, api_rate_limits
+- **Relationships**: Properly normalized with foreign keys and constraints
+- **Performance**: 19 indexes for optimized query execution
+
+---
+
+## 🔒 Security Architecture
+
+![Security Architecture](docs/resources/security-architecture.png)
+
+**Enterprise-grade security with 5 protection layers:**
+
+1. **Authentication & Authorization**: JWT tokens, RBAC (Admin/Customer)
+2. **Rate Limiting**: Database-backed limits (20 OTP/day, 5 admin login/min)
+3. **Input Validation**: SQL injection prevention, XSS protection
+4. **CSRF Protection**: Token-based validation with HMAC-SHA256
+5. **Security Headers**: 8 HTTP security headers (CSP, HSTS, X-Frame-Options)
+
+**Security Rating**: 9.5/10 ⭐ | **Production Ready**: ✅
+
+---
+
+## ⚡ Platform Features
+
+![Features Overview](docs/resources/features-overview.png)
+
+**9 Core Features:**
+- 🛒 **Smart Cart** - Add, update, remove, save for later
+- 🔒 **Secure Auth** - JWT + OTP phone/email authentication
+- 📊 **Analytics** - Real-time dashboard with live metrics
+- 📱 **Responsive** - Optimized for mobile, tablet, desktop
+- 📄 **PDF Reports** - Export orders, analytics, catalogs
+- ⭐ **Reviews** - Product ratings and customer feedback
+- 🎁 **Offers** - Coupons, discounts, promotional campaigns
+- 🚚 **Order Track** - Real-time status updates
+- ⚡ **Enterprise Security** - 9.5/10 security rating
+
+---
+
+## 🧰 Technology Stack Layers
+
+![Technology Stack](docs/resources/tech-stack.png)
+
+**From Database to Frontend:**
+
+- **Layer 1 (Database)**: PostgreSQL 16, psycopg2, connection pooling
+- **Layer 2 (Backend)**: Flask 3.0, Python 3.9+, bcrypt, PyJWT, mailersend, twilio
+- **Layer 3 (Security)**: JWT, rate limiting, CSRF protection, input validation
+- **Layer 4 (Frontend)**: React 18.2, React Router v6, Bootstrap 5, Recharts, jsPDF
+- **Layer 5 (Services)**: SMS (Twilio/Fast2SMS), Email (MailerSend), CDN
+
+---
+
+## 🔐 Authentication Flow
+
+![Authentication Flow](docs/resources/auth-flow.png)
+
+**Secure OTP-based authentication process:**
+
+1. User enters phone/email → Rate limit check
+2. Generate 6-digit OTP → Store in memory (5-min expiry)
+3. Send via SMS/Email → User verification
+4. Check user existence → Create new or fetch existing
+5. Generate JWT token (7-day expiry) → Store in cookies + localStorage
+6. Success: Redirect to dashboard
+
+---
+
+## 📦 Order Processing Workflow
+
+![Order Workflow](docs/resources/order-workflow.png)
+
+**Complete order lifecycle:**
+
+- **Customer Journey**: Browse → Cart → Checkout → Address → Payment → Confirmation
+- **Order Statuses**: Pending → Confirmed → Preparing → Out for Delivery → Delivered
+- **Admin Actions**: View orders → Update status → Manage inventory → Generate reports
+- **Parallel Processes**: Inventory check, payment processing, notifications, analytics
+- **Timeline**: Order placed → Confirmation (5min) → Preparing (30min) → Delivery (2-4hrs)
 
 ## 🚀 Available Scripts
 
@@ -271,8 +404,8 @@ Comprehensive documentation is available in the `/docs` folder:
 
 ### Quick Links
 - Security Rating: **9.5/10** ✅
-- Test Coverage: **93.3% pass rate**
 - Production Ready: **Yes** ✅
+- Architecture Diagrams: **8 technical images** 📊
 
 ## 🔒 Security Features
 

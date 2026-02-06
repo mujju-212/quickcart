@@ -85,5 +85,9 @@ coverage/
 tmp/
 temp/
 
-# Documentation folder
-docs/
+# Private/Internal documentation (not for public repo)
+docs/_internal/
+IMAGE_GENERATION_PROMPTS.md
+IMAGE_PLACEHOLDER_GUIDE.md
+IMAGE_PROMPTS_TECHNICAL.md
+README_MODERNIZATION_COMPLETE.md
