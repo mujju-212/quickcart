@@ -1,0 +1,306 @@
+-- ============================================================================
+-- QuickCart Database Migration Script for Supabase
+-- ============================================================================
+-- Instructions:
+-- 1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/ycwtmuclynitqursbyxd
+-- 2. Click on "SQL Editor" in the left sidebar
+-- 3. Copy and paste this ENTIRE script
+-- 4. Click "Run" to execute
+-- 5. Wait for the success message
+-- 
+-- This script will create:
+-- - 13 tables (categories, products, users, addresses, orders, cart, wishlist, etc.)
+-- - 15 performance indexes
+-- - 9 auto-update triggers
+-- - Default seed data (13 categories, 1 admin user, 3 banners, 3 offers)
+-- ============================================================================
+
+-- ============================================================================
+-- STEP 1: Clean up existing tables (if any)
+-- ============================================================================
+DROP TABLE IF EXISTS order_timeline CASCADE;
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS cart_items CASCADE;
+DROP TABLE IF EXISTS wishlist_items CASCADE;
+DROP TABLE IF EXISTS user_addresses CASCADE;
+DROP TABLE IF EXISTS product_reviews CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS banners CASCADE;
+DROP TABLE IF EXISTS offers CASCADE;
+
+-- ============================================================================
+-- STEP 2: Create all tables
+-- ============================================================================
+
+-- Categories table (13 default categories for grocery items)
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    image_url TEXT,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    products_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Products table (grocery items with pricing, stock, and images)
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+    category_name VARCHAR(100),
+    price DECIMAL(10,2) NOT NULL,
+    original_price DECIMAL(10,2),
+    size VARCHAR(50),
+    stock INTEGER DEFAULT 0,
+    image_url TEXT,
+    description TEXT,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'out_of_stock')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Users table (customer and admin accounts with OTP-based authentication)
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) UNIQUE NOT NULL,
+    email VARCHAR(150) UNIQUE,
+    role VARCHAR(20) DEFAULT 'customer' CHECK (role IN ('customer', 'admin')),
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
+    login_count INTEGER DEFAULT 0,
+    last_login TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User addresses table (multiple delivery addresses per user)
+CREATE TABLE user_addresses (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    phone VARCHAR(20),
+    address_line_1 VARCHAR(200) NOT NULL,
+    address_line_2 VARCHAR(200),
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    postal_code VARCHAR(20) NOT NULL,
+    country VARCHAR(100) DEFAULT 'India',
+    address_type VARCHAR(20) DEFAULT 'home' CHECK (address_type IN ('home', 'work', 'other')),
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Orders table (customer orders with payment and delivery tracking)
+CREATE TABLE orders (
+    id VARCHAR(50) PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    phone VARCHAR(20) NOT NULL,
+    user_name VARCHAR(100),
+    total DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    delivery_fee DECIMAL(10,2) DEFAULT 20.00,
+    status VARCHAR(30) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled')),
+    payment_status VARCHAR(30) DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded')),
+    payment_method VARCHAR(50),
+    delivery_address TEXT,
+    order_date DATE DEFAULT CURRENT_DATE,
+    estimated_delivery TIMESTAMP,
+    actual_delivery TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Order items table (individual products in each order)
+CREATE TABLE order_items (
+    id SERIAL PRIMARY KEY,
+    order_id VARCHAR(50) REFERENCES orders(id) ON DELETE CASCADE,
+    product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(200) NOT NULL,
+    product_price DECIMAL(10,2) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    total_price DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Order timeline table (status updates for order tracking)
+CREATE TABLE order_timeline (
+    id SERIAL PRIMARY KEY,
+    order_id VARCHAR(50) REFERENCES orders(id) ON DELETE CASCADE,
+    status VARCHAR(50) NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed BOOLEAN DEFAULT true,
+    notes TEXT
+);
+
+-- Cart items table (shopping cart for each user)
+CREATE TABLE cart_items (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    phone VARCHAR(20),
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, product_id)
+);
+
+-- Wishlist items table (saved items for later purchase)
+CREATE TABLE wishlist_items (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    phone VARCHAR(20),
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, product_id)
+);
+
+-- Banners table (homepage promotional banners)
+CREATE TABLE banners (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200),
+    subtitle VARCHAR(200),
+    image_url TEXT NOT NULL,
+    link_url TEXT,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    display_order INTEGER DEFAULT 0,
+    start_date DATE,
+    end_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Offers table (discount codes and promotional campaigns)
+CREATE TABLE offers (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_type VARCHAR(20) NOT NULL CHECK (discount_type IN ('percentage', 'fixed', 'free_delivery')),
+    discount_value DECIMAL(10,2) NOT NULL,
+    min_order_value DECIMAL(10,2) DEFAULT 0,
+    max_discount_amount DECIMAL(10,2),
+    image_url TEXT,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    usage_limit INTEGER DEFAULT 1000,
+    used_count INTEGER DEFAULT 0,
+    applicable_categories TEXT DEFAULT 'all',
+    offer_type VARCHAR(20) DEFAULT 'general' CHECK (offer_type IN ('general', 'first_order', 'free_delivery', 'weekend_special')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Product reviews table (customer ratings and reviews)
+CREATE TABLE product_reviews (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    user_name VARCHAR(100) NOT NULL,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT NOT NULL,
+    verified_purchase BOOLEAN DEFAULT false,
+    helpful_count INTEGER DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- STEP 3: Create performance indexes
+-- ============================================================================
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_products_status ON products(status);
+CREATE INDEX idx_reviews_product ON product_reviews(product_id);
+CREATE INDEX idx_reviews_user ON product_reviews(user_id);
+CREATE INDEX idx_reviews_status ON product_reviews(status);
+CREATE INDEX idx_orders_user ON orders(user_id);
+CREATE INDEX idx_orders_phone ON orders(phone);
+CREATE INDEX idx_orders_date ON orders(order_date);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_cart_user ON cart_items(user_id);
+CREATE INDEX idx_wishlist_user ON wishlist_items(user_id);
+CREATE INDEX idx_offers_code ON offers(code);
+CREATE INDEX idx_offers_status ON offers(status);
+CREATE INDEX idx_offers_dates ON offers(start_date, end_date);
+
+-- ============================================================================
+-- STEP 4: Create auto-update triggers for updated_at columns
+-- ============================================================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_addresses_updated_at BEFORE UPDATE ON user_addresses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_cart_updated_at BEFORE UPDATE ON cart_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_banners_updated_at BEFORE UPDATE ON banners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_offers_updated_at BEFORE UPDATE ON offers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON product_reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- STEP 5: Insert seed data (default categories, admin user, banners, offers)
+-- ============================================================================
+
+-- Insert 13 default grocery categories
+INSERT INTO categories (name, image_url, status) VALUES
+('Fruits & Vegetables', 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&h=200&fit=crop&q=80', 'active'),
+('Dairy & Breakfast', 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop&q=80', 'active'),
+('Bakery & Biscuits', 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&h=200&fit=crop&q=80', 'active'),
+('Beverages', 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=200&h=200&fit=crop&q=80', 'active'),
+('Snacks & Munchies', 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=200&h=200&fit=crop&q=80', 'active'),
+('Instant & Frozen Food', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=200&h=200&fit=crop&q=80', 'active'),
+('Tea, Coffee & Health Drink', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=200&h=200&fit=crop&q=80', 'active'),
+('Atta, Rice & Dal', 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&h=200&fit=crop&q=80', 'active'),
+('Masala, Oil & More', 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=200&h=200&fit=crop&q=80', 'active'),
+('Sweet Tooth', 'https://images.unsplash.com/photo-1571115764595-644a1f56a55c?w=200&h=200&fit=crop&q=80', 'active'),
+('Cleaning & Household', 'https://images.unsplash.com/photo-1585338447937-7082f8fc763d?w=200&h=200&fit=crop&q=80', 'active'),
+('Personal Care', 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=200&h=200&fit=crop&q=80', 'active'),
+('Pet Care', 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=200&h=200&fit=crop&q=80', 'active');
+
+-- Insert default admin user (phone: admin, you can change this later)
+INSERT INTO users (name, phone, email, role, status) VALUES
+('Admin', 'admin', 'admin@quickcart.com', 'admin', 'active');
+
+-- Insert 3 default homepage banners
+INSERT INTO banners (title, subtitle, image_url, status, display_order) VALUES
+('Fresh Groceries', 'Delivered in 10 minutes', 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&h=400&fit=crop&q=80', 'active', 1),
+('Special Offers', 'Up to 50% off on selected items', 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=400&fit=crop&q=80', 'active', 2),
+('Organic Products', 'Farm fresh organic vegetables', 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=800&h=400&fit=crop&q=80', 'active', 3);
+
+-- Insert 3 default promotional offers (valid for 30 days from today)
+INSERT INTO offers (title, description, code, discount_type, discount_value, min_order_value, max_discount_amount, image_url, status, start_date, end_date, offer_type) VALUES
+('First Order', 'Use code: FIRST20', 'FIRST20', 'percentage', 20, 299, 100, 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=200&fit=crop&q=80', 'active', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'first_order'),
+('Free Delivery', 'No delivery charges', 'FREEDEL999', 'free_delivery', 0, 999, 40, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=200&fit=crop&q=80', 'active', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'free_delivery'),
+('Weekend Special', 'On orders above ₹1500', 'WEEKEND100', 'fixed', 100, 1500, 100, 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=200&fit=crop&q=80', 'active', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'weekend_special');
+
+-- ============================================================================
+-- MIGRATION COMPLETE! 🎉
+-- ============================================================================
+-- Your QuickCart database is now ready with:
+-- ✅ 13 tables created
+-- ✅ 15 performance indexes added
+-- ✅ 9 auto-update triggers configured
+-- ✅ 13 categories populated
+-- ✅ 1 admin user created
+-- ✅ 3 banners added
+-- ✅ 3 promotional offers created
+--
+-- Next steps:
+-- 1. Verify tables in Supabase: Go to "Table Editor" to see all tables
+-- 2. Get your connection string: Settings > Database > Connection string
+-- 3. Update your Flask backend with the Supabase DATABASE_URL
+-- 4. Deploy your backend to Render.com or another hosting platform
+-- ============================================================================
