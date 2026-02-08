@@ -1,0 +1,13 @@
+{
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "devCommand": "npm start",
+  "framework": "create-react-app",
+  "env": {
+    "REACT_APP_API_URL": {
+      "description": "Backend API URL from Render deployment",
+      "value": "https://quickcart-api-a09g.onrender.com/api"
+    }
+  }
+}
