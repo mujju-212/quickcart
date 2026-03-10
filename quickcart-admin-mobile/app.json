@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "QuickCart Admin",
+    "slug": "quickcart-admin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/icon.png",
+    "scheme": "quickcart-admin",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./src/assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E40AF"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.quickcart.admin"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/adaptive-icon.png",
+        "backgroundColor": "#1E40AF"
+      },
+      "package": "com.quickcart.admin"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-image-picker",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1E40AF",
+          "image": "./src/assets/images/splash.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
