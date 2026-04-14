@@ -1,8 +1,15 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from root and backend folders.
+# backend/.env values override root .env values for backend runtime.
+CURRENT_FILE = Path(__file__).resolve()
+BACKEND_DIR = CURRENT_FILE.parents[1]
+ROOT_DIR = BACKEND_DIR.parent
+
+load_dotenv(ROOT_DIR / '.env')
+load_dotenv(BACKEND_DIR / '.env', override=True)
 
 class Config:
     """Application configuration"""
@@ -19,6 +26,9 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'postgres')
     DB_PASSWORD = os.getenv('DB_PASSWORD', 'mk0492')
     DATABASE_URL = os.getenv('DATABASE_URL') or f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    DB_POOL_MIN = int(os.getenv('DB_POOL_MIN', 2))
+    DB_POOL_MAX = int(os.getenv('DB_POOL_MAX', 20))
+    DB_CONNECT_TIMEOUT = int(os.getenv('DB_CONNECT_TIMEOUT', 10))
     
     # JWT Configuration
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY') or 'your-jwt-secret-key-here'

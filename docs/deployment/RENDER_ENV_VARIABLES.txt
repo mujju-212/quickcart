@@ -1,0 +1,142 @@
+# ============================================================================
+# QUICKCART RENDER DEPLOYMENT - ENVIRONMENT VARIABLES
+# ============================================================================
+# Copy and paste these values into Render.com dashboard
+# Render Dashboard → Your Service → Environment → Add Environment Variable
+# ============================================================================
+
+# ============================================================================
+# STEP 1: GET YOUR SUPABASE CONNECTION STRING
+# ============================================================================
+# 1. Go to: https://supabase.com/dashboard/project/ycwtmuclynitqursbyxd
+# 2. Click: Settings (⚙️) → Database
+# 3. Scroll to: "Connection string" section
+# 4. Select: "URI" tab (NOT "JDBC" or "Session Mode")
+# 5. Copy the connection string - it looks like this:
+#
+#    postgresql://postgres.ycwtmuclynitqursbyxd:[YOUR-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+#
+# 6. Replace [YOUR-PASSWORD] with your actual Supabase database password
+# 7. Paste it below in the DATABASE_URL value
+#
+# IMPORTANT: Your password is in Supabase Dashboard → Settings → Database → "Database password" section
+# If you forgot it, you can reset it in the same section.
+# ============================================================================
+
+# ============================================================================
+# COPY THESE 5 VARIABLES TO RENDER
+# ============================================================================
+
+Variable 1:
+KEY: DATABASE_URL
+VALUE: postgresql://postgres.ycwtmuclynitqursbyxd:[YOUR-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+👆 Replace [YOUR-PASSWORD] with your actual Supabase password!
+
+Variable 2:
+KEY: JWT_SECRET_KEY
+VALUE: Xk9mP2vN8qR5tY7wZ3bF6hJ4nM1sL0cV
+👆 Feel free to change this to any random 32-character string
+
+Variable 3:
+KEY: SECRET_KEY
+VALUE: Qa2Ws3Ed4Rf5Tg6Yh7Uj8Ik9Ol0Pm1Zn
+👆 Feel free to change this to any random 32-character string
+
+Variable 4:
+KEY: FLASK_ENV
+VALUE: production
+
+Variable 5:
+KEY: PYTHON_VERSION
+VALUE: 3.11.0
+
+# ============================================================================
+# OPTIONAL VARIABLES (Add these if you need SMS/OTP features)
+# ============================================================================
+
+# For Twilio SMS (Recommended for production):
+KEY: TWILIO_ACCOUNT_SID
+VALUE: your_twilio_account_sid_here
+
+KEY: TWILIO_AUTH_TOKEN
+VALUE: your_twilio_auth_token_here
+
+KEY: TWILIO_PHONE_NUMBER
+VALUE: your_twilio_phone_number_here
+
+# For Fast2SMS (Indian SMS provider):
+KEY: REACT_APP_FAST2SMS_API_KEY
+VALUE: your_fast2sms_api_key_here
+
+# ============================================================================
+# HOW TO ADD THESE TO RENDER (No .env Upload Needed!)
+# ============================================================================
+# Render doesn't support uploading .env files directly.
+# You must add each variable through the dashboard:
+#
+# 1. Go to Render Dashboard: https://dashboard.render.com
+# 2. Click on your service (quickcart-api)
+# 3. Go to "Environment" tab in the left sidebar
+# 4. Click "Add Environment Variable" button
+# 5. For each variable above:
+#    - Paste the KEY in the "Key" field
+#    - Paste the VALUE in the "Value" field
+#    - Click "Save"
+# 6. Repeat for all 5 required variables
+# 7. Render will automatically restart your service
+# ============================================================================
+
+# ============================================================================
+# GENERATE YOUR OWN RANDOM SECRET KEYS (Optional)
+# ============================================================================
+# If you want to generate your own secret keys instead of using the ones above:
+#
+# Windows PowerShell:
+# -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})
+#
+# Python:
+# python -c "import secrets; print(secrets.token_urlsafe(32))"
+#
+# Online Generator:
+# https://randomkeygen.com/ (use "CodeIgniter Encryption Keys")
+# ============================================================================
+
+# ============================================================================
+# QUICK CHECKLIST BEFORE DEPLOYMENT
+# ============================================================================
+# ✅ Got Supabase connection string from dashboard
+# ✅ Replaced [YOUR-PASSWORD] with actual password
+# ✅ Added all 5 required environment variables to Render
+# ✅ Set FLASK_ENV to "production" (not "development")
+# ✅ Repository is pushed to GitHub
+# ✅ Connected GitHub repository to Render
+# ✅ Set Root Directory to "backend"
+# ✅ Set Start Command to "gunicorn app:app"
+# ============================================================================
+
+# ============================================================================
+# YOUR SUPABASE PROJECT DETAILS
+# ============================================================================
+# Project ID: ycwtmuclynitqursbyxd
+# Project Name: quickcart-db
+# Region: ap-south-1 (Mumbai, India)
+# Database Host: db.ycwtmuclynitqursbyxd.supabase.co
+# Pooler Host: aws-0-ap-south-1.pooler.supabase.com
+# PostgreSQL Version: 17.6.1
+# Dashboard: https://supabase.com/dashboard/project/ycwtmuclynitqursbyxd
+# ============================================================================
+
+# ============================================================================
+# NEED HELP FINDING YOUR SUPABASE PASSWORD?
+# ============================================================================
+# Your Supabase password is NOT visible in the dashboard for security.
+# If you forgot it:
+#
+# 1. Go to: https://supabase.com/dashboard/project/ycwtmuclynitqursbyxd/settings/database
+# 2. Look for "Database password" section
+# 3. Click "Reset database password"
+# 4. Copy the new password and save it somewhere safe
+# 5. Update your DATABASE_URL with the new password
+#
+# NOTE: Resetting the password will NOT affect your data, only the connection credentials.
+# ============================================================================
