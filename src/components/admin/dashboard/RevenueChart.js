@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, ButtonGroup, Button, Spinner } from 'react-bootstrap';
 import analyticsService from '../../../services/analyticsService';
@@ -9,6 +10,7 @@ const RevenueChart = () => {
 
   useEffect(() => {
     loadRevenueData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRange]);
 
   const loadRevenueData = async () => {

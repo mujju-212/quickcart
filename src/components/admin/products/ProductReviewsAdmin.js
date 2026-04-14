@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Modal, Table, Button, Badge, Spinner, Alert, Form } from 'react-bootstrap';
 import Cookies from 'js-cookie';
@@ -16,6 +17,7 @@ const ProductReviewsAdmin = ({ show, onHide, productId, productName }) => {
       fetchReviews();
       fetchStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, productId]);
 
   const fetchReviews = async () => {

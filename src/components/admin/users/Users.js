@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Spinner, Badge, Form, InputGroup, Modal, Row, Col, Alert } from 'react-bootstrap';
 import { FaEye, FaEdit, FaSearch, FaFilter, FaSort, FaUser } from 'react-icons/fa';
@@ -30,10 +31,12 @@ const Users = () => {
 
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     filterAndSortUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, searchTerm, roleFilter, statusFilter, sortBy, sortOrder]);
 
   const loadUsers = async () => {

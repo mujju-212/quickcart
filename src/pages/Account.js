@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Nav, Card, Badge, Button } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';

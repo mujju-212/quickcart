@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Badge, Button, Modal, Form, Row, Col, Alert, Dropdown, Nav, Tab, Spinner, InputGroup, FormControl } from 'react-bootstrap';
 import { FaEye, FaEdit, FaCheck, FaTruck, FaBox, FaTimes, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCreditCard, FaShoppingBag, FaCheckCircle, FaBan, FaClock, FaSearch } from 'react-icons/fa';

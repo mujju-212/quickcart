@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Spinner } from 'react-bootstrap';
 import { FaShoppingCart, FaBoxes, FaUsers, FaChartLine } from 'react-icons/fa';

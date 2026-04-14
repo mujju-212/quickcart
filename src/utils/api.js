@@ -98,7 +98,7 @@ export const secureDelete = async (url) => {
   return secureFetch(url, { method: 'DELETE' });
 };
 
-export default {
+const api = {
   getAuthHeaders,
   secureFetch,
   secureGet,
@@ -106,3 +106,5 @@ export default {
   securePut,
   secureDelete,
 };
+
+export default api;

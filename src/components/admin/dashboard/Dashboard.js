@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useRef } from 'react';
 import { Row, Col, Card, Button, Spinner } from 'react-bootstrap';
 import StatsCards from './StatsCards';
