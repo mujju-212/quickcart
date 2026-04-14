@@ -1,8 +1,15 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from root and backend folders.
+# backend/.env values override root .env values for backend runtime.
+CURRENT_FILE = Path(__file__).resolve()
+BACKEND_DIR = CURRENT_FILE.parents[1]
+ROOT_DIR = BACKEND_DIR.parent
+
+load_dotenv(ROOT_DIR / '.env')
+load_dotenv(BACKEND_DIR / '.env', override=True)
 
 class Config:
     """Application configuration"""

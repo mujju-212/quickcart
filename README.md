@@ -153,25 +153,61 @@ quickcart/
    cd quickcart
    ```
 
-2. **Install dependencies**
-   ```bash
-   npm install
+2. **Run one-command setup**
+
+   **Windows (CMD/PowerShell):**
+   ```bat
+   setup.bat
    ```
 
-3. **Set up environment variables**
+   **macOS/Linux/Git Bash:**
    ```bash
-   # Copy the environment template
-   cp .env.example .env
-   
-   # Edit .env with your API keys (optional for basic functionality)
+   bash setup.sh
    ```
 
-4. **Start the development server**
+   **Direct Python (all platforms):**
    ```bash
+   python setup_project.py
+   ```
+
+   This script will:
+   - Create `.env` and `backend/.env` from templates if missing
+   - Install frontend dependencies (`npm install`)
+   - Create backend virtual env and install Python requirements
+   - Initialize PostgreSQL using `database/schema.sql` through `database/init_db.py`
+
+3. **Update environment values**
+   - Edit `.env` and set frontend API value (recommended local value: `REACT_APP_API_URL=/api`)
+   - Edit `backend/.env` and set DB connection values (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` or `DATABASE_URL`)
+
+4. **If DB was skipped due placeholders, run DB setup after editing env**
+
+   **Windows (CMD/PowerShell):**
+   ```bat
+   setup-db.bat
+   ```
+
+   **macOS/Linux/Git Bash:**
+   ```bash
+   bash setup-db.sh
+   ```
+
+   **NPM wrapper:**
+   ```bash
+   npm run setup:db
+   ```
+
+5. **Start backend and frontend**
+   ```bash
+   # terminal 1
+   cd backend
+   .venv/Scripts/python app.py
+
+   # terminal 2 (project root)
    npm start
    ```
 
-5. **Open your browser**
+6. **Open your browser**
    ```
    http://localhost:3000
    ```
@@ -211,6 +247,8 @@ In the project directory, you can run:
 - `npm test` - Launches the test runner
 - `npm run build` - Builds the app for production
 - `npm run serve` - Serves the production build locally
+- `npm run setup` - Full setup on a new machine
+- `npm run setup:db` - Database setup only (after updating backend/.env)
 
 ### Code Quality Commands
 - `npm run lint` - Runs ESLint for code linting
@@ -225,33 +263,43 @@ In the project directory, you can run:
 #### Backend (.env in backend folder)
 ```env
 # Database Configuration
-DATABASE_URL=postgresql://user:password@localhost:5432/quickcart
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=quickcart
-DB_USER=your_username
+DB_NAME=blink_basket
+DB_USER=postgres
 DB_PASSWORD=your_password
+DATABASE_URL=postgresql://postgres:your_password@localhost:5432/blink_basket
 
 # Security (REQUIRED for production)
 JWT_SECRET_KEY=<generate-strong-secret-key>
-FLASK_ENV=production  # or 'development'
+FLASK_ENV=development
+API_PORT=5001
 
 # SMS Service (Optional - for OTP)
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_token
 TWILIO_PHONE_NUMBER=your_twilio_number
-FAST2SMS_API_KEY=your_fast2sms_key
+REACT_APP_FAST2SMS_API_KEY=your_fast2sms_key
 ```
 
 #### Frontend (.env in root folder)
 ```env
 # API Configuration
-REACT_APP_API_URL=http://localhost:5001/api
-NODE_ENV=production  # or 'development'
+REACT_APP_API_URL=/api
+REACT_APP_ENV=development
 
 # Optional Features
 REACT_APP_USE_MOCK_DATA=false
 ```
+
+### Database Schema Setup
+
+- Source schema file: `database/schema.sql`
+- Setup runner: `database/init_db.py`
+- Command:
+   ```bash
+   python database/init_db.py
+   ```
 
 ### Generate JWT Secret Key
 ```bash
@@ -323,11 +371,10 @@ QuickCart implements enterprise-grade security:
 cd database
 
 # Run setup script
-python setup.py
-
-# Ensure admin user exists
-python ensure_admin.py
+python init_db.py
 ```
+
+`init_db.py` applies `schema.sql`, which already inserts a default admin row.
 
 #### 2. Backend Setup
 ```bash
