@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Container } from 'react-bootstrap';
 import categoryService from '../services/categoryService';
 import productService from '../services/productService';
@@ -9,8 +10,11 @@ import ProductGrid from '../components/product/ProductGrid';
 import CategoryGrid from '../components/product/CategoryGrid';
 import CategoryProductSection from '../components/product/CategoryProductSection';
 import BannerCarousel from '../components/common/BannerCarousel';
+import AppLoadingScreen from '../components/common/AppLoadingScreen';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import '../assets/styles/mobile-home.css';
+
+const HOME_MIN_LOADER_MS = 900;
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
@@ -21,156 +25,98 @@ const Home = () => {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const isLoadingRef = useRef(false);
 
-  // Define loadBanners as useCallback for auto-refresh
-  const loadBanners = useCallback(async () => {
-    try {
-      console.log('🎨 Loading banners from API...');
-      const bannersData = await bannerService.getActiveBanners();
-      console.log('🎨 Banners loaded:', bannersData);
-      setBanners(bannersData);
-    } catch (error) {
-      console.error('❌ Error loading banners:', error);
-      setBanners([]);
+  const buildProductState = useCallback((productResponse) => {
+    if (!productResponse || !Array.isArray(productResponse.products)) {
+      return {
+        allProducts: [],
+        popular: [],
+        productsByCategory: {}
+      };
     }
-  }, []);
 
-  const loadOffers = useCallback(async () => {
-    try {
-      console.log('🎁 Loading offers from API...');
-      const offersData = await offersService.getActiveOffers();
-      console.log('🎁 Offers loaded:', offersData);
-      setOffers(offersData);
-    } catch (error) {
-      console.error('❌ Error loading offers:', error);
-      setOffers([]);
-    }
-  }, []);
+    const allProducts = productResponse.products.filter(
+      (product) => product.stock > 0 && product.status !== 'out_of_stock'
+    );
 
-  const loadCategories = useCallback(async () => {
-    try {
-      console.log('🏠 Home page loading categories...');
-      
-      // Test direct API call for debugging
-      try {
-        const directResponse = await fetch('/api/categories');
-        const directData = await directResponse.json();
-        console.log('🔍 Direct API test:', directData);
-      } catch (directError) {
-        console.log('⚠️ Direct API test failed:', directError.message);
+    const productsByCategory = {};
+    allProducts.forEach((product) => {
+      const categoryName = product.category_name || product.category || 'Uncategorized';
+      if (!productsByCategory[categoryName]) {
+        productsByCategory[categoryName] = [];
       }
-      
-      // DON'T initialize localStorage - we want to use API data
-      // Force clear any existing localStorage data to ensure API is used
-      localStorage.removeItem('categories');
-      
-      const response = await categoryService.getActiveCategories();
-      console.log('📂 Categories response:', response);
-      console.log('📂 Categories response type:', typeof response);
-      console.log('📂 Categories array:', response?.categories);
-      
-      if (response && response.categories) {
-        // Filter out categories with no in-stock products
-        const categoriesWithProducts = response.categories.filter(category => {
-          // Category should have products_count > 0 or we'll check manually
-          return category.products_count > 0 || category.product_count > 0;
-        });
-        
-        setCategories(categoriesWithProducts);
-        console.log('📂 Categories with products loaded:', categoriesWithProducts.length, '(filtered from', response.categories.length, 'total)');
-        console.log('📂 First category sample:', categoriesWithProducts[0]);
-      } else {
-        console.error('❌ Invalid categories response:', response);
-        setCategories([]);
-      }
-    } catch (error) {
-      console.error('❌ Error loading categories:', error);
-      setCategories([]);
-    }
-  }, []);
+      productsByCategory[categoryName].push(product);
+    });
 
-  const loadProducts = useCallback(async () => {
-    try {
-      console.log('🏠 Home page loading products...');
-      const response = await productService.getAllProducts();
-      console.log('📦 Products response:', response);
-      
-      if (response && response.products && Array.isArray(response.products)) {
-        // Filter out out-of-stock products (stock = 0 or status = 'out_of_stock')
-        const allProducts = response.products.filter(product => 
-          product.stock > 0 && product.status !== 'out_of_stock'
-        );
-        console.log('📦 In-stock products loaded:', allProducts.length, '(filtered from', response.products.length, 'total)');
-        
-        // Set all in-stock products
-        setProducts(allProducts);
-        
-        // Create popular products (first 12 in-stock products)
-        setPopularProducts(allProducts.slice(0, 12));
-        
-        // Group products by category
-        const productsByCategory = {};
-        allProducts.forEach(product => {
-          const categoryName = product.category_name || product.category || 'Uncategorized';
-          if (!productsByCategory[categoryName]) {
-            productsByCategory[categoryName] = [];
-          }
-          productsByCategory[categoryName].push(product);
-        });
-        
-        setCategoryProducts(productsByCategory);
-        console.log('📦 Products grouped by category:', Object.keys(productsByCategory));
-      } else {
-        console.error('❌ Invalid products response:', response);
-        setProducts([]);
-        setPopularProducts([]);
-        setCategoryProducts({});
-      }
-    } catch (error) {
-      console.error('❌ Error loading products:', error);
-      setProducts([]);
-      setPopularProducts([]);
-      setCategoryProducts({});
-    }
+    return {
+      allProducts,
+      popular: allProducts.slice(0, 12),
+      productsByCategory
+    };
   }, []);
 
   // Load all data function
   const loadAllData = useCallback(async () => {
-    console.log('🔄 Refreshing all data...');
-    
-    // Load products first, then filter categories based on products
-    await Promise.all([loadBanners(), loadOffers()]);
-    await loadProducts(); // Load products first
-    await loadCategories(); // Then load categories
-  }, [loadBanners, loadOffers, loadCategories, loadProducts]);
+    if (isLoadingRef.current) {
+      return;
+    }
 
-  // Enable auto-refresh every 20 seconds
-  useAutoRefresh(loadAllData, 20000, true);
+    isLoadingRef.current = true;
+    try {
+      const [bannersResult, offersResult, productsResult, categoriesResult] = await Promise.allSettled([
+        bannerService.getActiveBanners(),
+        offersService.getActiveOffers(),
+        productService.getAllProducts(),
+        categoryService.getActiveCategories(),
+      ]);
+
+      const bannersData = bannersResult.status === 'fulfilled' ? bannersResult.value : [];
+      const offersData = offersResult.status === 'fulfilled' ? offersResult.value : [];
+      const productsResponse = productsResult.status === 'fulfilled' ? productsResult.value : { products: [] };
+      const categoriesResponse = categoriesResult.status === 'fulfilled'
+        ? categoriesResult.value
+        : { categories: [] };
+
+      const { allProducts, popular, productsByCategory } = buildProductState(productsResponse);
+
+      const categoriesList = Array.isArray(categoriesResponse?.categories)
+        ? categoriesResponse.categories.filter(
+            (category) => (category.products_count || category.product_count || 0) > 0
+          )
+        : [];
+
+      setBanners(Array.isArray(bannersData) ? bannersData : []);
+      setOffers(Array.isArray(offersData) ? offersData : []);
+      setProducts(allProducts);
+      setPopularProducts(popular);
+      setCategoryProducts(productsByCategory);
+      setCategories(categoriesList);
+    } catch (error) {
+      console.error('Error loading home data:', error);
+    } finally {
+      isLoadingRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildProductState]);
+
+  // Keep data fresh without hammering the backend.
+  useAutoRefresh(loadAllData, 60000, true);
 
   // Load data on component mount
   useEffect(() => {
-    // Add debugging function to window for manual testing
-    window.testCategoriesAPI = async () => {
-      try {
-        console.log('🧪 Manual API test started...');
-        const response = await fetch('/api/categories');
-        const data = await response.json();
-        console.log('🧪 Manual API test result:', data);
-        return data;
-      } catch (error) {
-        console.log('🧪 Manual API test failed:', error);
-        return null;
-      }
-    };
-
-    // Clear localStorage to force API usage
-    console.log('🗑️ Clearing localStorage to force API calls...');
-    localStorage.removeItem('categories');
-
-    // Initial load
     const loadData = async () => {
       setLoading(true);
+      const loadStart = Date.now();
       await loadAllData();
+
+      const elapsed = Date.now() - loadStart;
+      if (elapsed < HOME_MIN_LOADER_MS) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, HOME_MIN_LOADER_MS - elapsed);
+        });
+      }
+
       setLoading(false);
     };
     
@@ -178,8 +124,7 @@ const Home = () => {
 
     // Listen for real-time product updates from admin
     const handleProductsUpdate = (event) => {
-      console.log('🔄 Home: Products updated from admin', event.detail.products.length);
-      const allProducts = event.detail.products;
+      const allProducts = Array.isArray(event?.detail?.products) ? event.detail.products : [];
       
       // Update all products
       setProducts(allProducts);
@@ -202,12 +147,10 @@ const Home = () => {
     // Listen for localStorage changes (when categories are updated from admin)
     const handleStorageChange = (e) => {
       if (e.key === 'categories') {
-        console.log('📢 Categories updated, refreshing...');
-        loadCategories();
+        loadAllData();
       }
       if (e.key === 'products') {
-        console.log('📢 Products updated, refreshing...');
-        loadProducts();
+        loadAllData();
       }
     };
 
@@ -216,8 +159,7 @@ const Home = () => {
     
     // Also listen for a custom event that we can trigger from the same tab
     const handleCategoriesUpdate = () => {
-      console.log('📢 Categories updated (same tab), refreshing...');
-      loadCategories();
+      loadAllData();
     };
     
     window.addEventListener('categoriesUpdated', handleCategoriesUpdate);
@@ -227,18 +169,11 @@ const Home = () => {
       window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
       window.removeEventListener('productsUpdated', handleProductsUpdate);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
-    return (
-      <Container className="py-5">
-        <div className="d-flex justify-content-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      </Container>
-    );
+    return <AppLoadingScreen message="Bringing fresh groceries to your screen" fullScreen={false} />;
   }
 
   return (
