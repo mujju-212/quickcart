@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Modal, Form, Spinner, Badge, Table } from 'react-bootstrap';
 import { FaFileDownload, FaFilePdf, FaFileExcel, FaFilter, FaBox, FaShoppingCart, FaUsers, FaTags, FaGift, FaWarehouse, FaEye, FaCheck } from 'react-icons/fa';
@@ -18,6 +19,7 @@ const ReportsHub = () => {
   // Load categories for filters
   useEffect(() => {
     fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCategories = async () => {

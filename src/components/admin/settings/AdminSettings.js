@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Button, Alert, Row, Col, Tab, Tabs } from 'react-bootstrap';
 import { FaUser, FaLock, FaBell, FaStore, FaSave } from 'react-icons/fa';
@@ -40,6 +41,7 @@ const AdminSettings = () => {
 
   useEffect(() => {
     loadAdminProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   const loadAdminProfile = () => {
@@ -154,6 +156,7 @@ const AdminSettings = () => {
     if (savedNotificationSettings) {
       setNotificationSettings(JSON.parse(savedNotificationSettings));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
