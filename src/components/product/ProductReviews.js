@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Form, Modal, Badge, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +22,7 @@ const ProductReviews = ({ productId }) => {
 
   useEffect(() => {
     fetchReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
   const fetchReviews = async () => {

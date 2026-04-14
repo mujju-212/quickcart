@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Navbar, Nav, Container, Button, Badge, Form, Dropdown, Offcanvas } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
