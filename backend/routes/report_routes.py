@@ -16,8 +16,8 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
 from reportlab.pdfgen import canvas
 from psycopg2.extras import RealDictCursor
-from utils.database import db
-from utils.auth_middleware import admin_required
+from backend.utils.database import db
+from backend.utils.auth_middleware import admin_required
 from decimal import Decimal
 
 report_bp = Blueprint('reports', __name__)
