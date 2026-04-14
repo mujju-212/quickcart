@@ -85,9 +85,9 @@ coverage/
 tmp/
 temp/
 
-# Private/Internal documentation (not for public repo)
-docs/_internal/
-IMAGE_GENERATION_PROMPTS.md
-IMAGE_PLACEHOLDER_GUIDE.md
-IMAGE_PROMPTS_TECHNICAL.md
-README_MODERNIZATION_COMPLETE.md
+# Documentation folder
+docs/
+
+# Local deployment/app metadata
+.vercel/
+**/.expo/
