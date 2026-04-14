@@ -8,11 +8,13 @@ import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import BackToTop from './components/common/BackToTop';
 import MobileBottomNav from './components/common/MobileBottomNav';
+import AppLoadingScreen from './components/common/AppLoadingScreen';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
+import Home from './pages/Home';
+
 // Lazy load pages for better performance
-const Home = lazy(() => import('./pages/Home'));
 const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
 const Cart = lazy(() => import('./pages/Cart'));
@@ -32,24 +34,6 @@ const HelpCenter = lazy(() => import('./pages/HelpCenter'));
 const Support = lazy(() => import('./pages/Support'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
-
-// Loading component
-const LoadingSpinner = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f8f9fa'
-  }}>
-    <div className="text-center">
-      <div className="spinner-border text-warning" role="status" style={{ width: '3rem', height: '3rem' }}>
-        <span className="visually-hidden">Loading...</span>
-      </div>
-      <p className="mt-3 text-muted">Loading QuickCart...</p>
-    </div>
-  </div>
-);
 
 // Layout component to conditionally show Header/Footer
 function Layout({ children }) {
@@ -85,7 +69,7 @@ function App() {
             <Router>
               <div className="App">
                 <Layout>
-                  <Suspense fallback={<LoadingSpinner />}>
+                  <Suspense fallback={<AppLoadingScreen message="Loading your QuickCart page" fullScreen={false} />}>
                     <Routes>
                       <Route path="/" element={<Home />} />
                       <Route path="/product/:id" element={<ProductDetails />} />
