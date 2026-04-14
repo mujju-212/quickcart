@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
-from utils.database import db
-from utils.auth_middleware import admin_required, optional_auth
-from utils.input_validator import InputValidator
+from backend.utils.database import db
+from backend.utils.auth_middleware import admin_required, optional_auth
+from backend.utils.input_validator import InputValidator
+from backend.utils.response_cache import response_cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,41 +16,52 @@ def get_all_products():
         search = request.args.get('search')
         limit = request.args.get('limit', type=int)
         include_out_of_stock = request.args.get('include_out_of_stock', 'false').lower() == 'true'
-        
-        query = """
-            SELECT p.*, c.name as category_name 
-            FROM products p 
-            LEFT JOIN categories c ON p.category_id = c.id 
-            WHERE p.status = 'active'
-        """
-        params = []
-        
-        # By default, exclude out-of-stock products for customers
-        if not include_out_of_stock:
-            query += " AND p.stock > 0"
-        
-        if category:
-            query += " AND (p.category_name = %s OR c.name = %s)"
-            params.extend([category, category])
-        
-        if search:
-            query += " AND (p.name ILIKE %s OR p.description ILIKE %s)"
-            search_term = f"%{search}%"
-            params.extend([search_term, search_term])
-        
-        query += " ORDER BY p.id"
-        
-        if limit:
-            query += " LIMIT %s"
-            params.append(limit)
-        
-        products = db.execute_query(query, params, fetch=True)
-        
-        return jsonify({
-            "success": True,
-            "products": [dict(product) for product in products],
-            "count": len(products)
-        })
+
+        cache_key = (
+            f"products:list:v2:category={category or ''}:search={search or ''}:"
+            f"limit={limit or ''}:include_oos={include_out_of_stock}"
+        )
+        def build_payload():
+            query = """
+                SELECT p.*, c.name as category_name 
+                FROM products p 
+                LEFT JOIN categories c ON p.category_id = c.id 
+                WHERE p.status = 'active'
+            """
+            params = []
+
+            # By default, exclude out-of-stock products for customers
+            if not include_out_of_stock:
+                query_nonlocal = query + " AND p.stock > 0"
+            else:
+                query_nonlocal = query
+
+            if category:
+                query_nonlocal += " AND (p.category_name = %s OR c.name = %s)"
+                params.extend([category, category])
+
+            if search:
+                query_nonlocal += " AND (p.name ILIKE %s OR p.description ILIKE %s)"
+                search_term = f"%{search}%"
+                params.extend([search_term, search_term])
+
+            query_nonlocal += " ORDER BY p.id"
+
+            if limit:
+                query_nonlocal += " LIMIT %s"
+                params.append(limit)
+
+            products = db.execute_query(query_nonlocal, params, fetch=True)
+
+            return {
+                "success": True,
+                "products": [dict(product) for product in products],
+                "count": len(products)
+            }
+
+        payload = response_cache.get_or_set(cache_key, build_payload, ttl_seconds=30)
+
+        return jsonify(payload)
         
     except Exception as e:
         logger.error(f"Error fetching products: {e}")
@@ -59,21 +71,30 @@ def get_all_products():
 def get_product_by_id(product_id):
     """Get a specific product by ID"""
     try:
-        query = """
-            SELECT p.*, c.name as category_name 
-            FROM products p 
-            LEFT JOIN categories c ON p.category_id = c.id 
-            WHERE p.id = %s AND p.status = 'active'
-        """
-        product = db.execute_query_one(query, (product_id,))
-        
-        if not product:
+        cache_key = f"products:by-id:{product_id}"
+        def build_payload():
+            query = """
+                SELECT p.*, c.name as category_name 
+                FROM products p 
+                LEFT JOIN categories c ON p.category_id = c.id 
+                WHERE p.id = %s AND p.status = 'active'
+            """
+            product = db.execute_query_one(query, (product_id,))
+
+            if not product:
+                return None
+
+            return {
+                "success": True,
+                "product": dict(product)
+            }
+
+        payload = response_cache.get_or_set(cache_key, build_payload, ttl_seconds=60)
+
+        if payload is None:
             return jsonify({"success": False, "error": "Product not found"}), 404
-        
-        return jsonify({
-            "success": True,
-            "product": dict(product)
-        })
+
+        return jsonify(payload)
         
     except Exception as e:
         logger.error(f"Error fetching product {product_id}: {e}")
@@ -83,21 +104,27 @@ def get_product_by_id(product_id):
 def get_products_by_category(category_name):
     """Get products by category name"""
     try:
-        query = """
-            SELECT p.*, c.name as category_name 
-            FROM products p 
-            LEFT JOIN categories c ON p.category_id = c.id 
-            WHERE (p.category_name = %s OR c.name = %s) AND p.status = 'active'
-            ORDER BY p.id
-        """
-        products = db.execute_query(query, (category_name, category_name), fetch=True)
-        
-        return jsonify({
-            "success": True,
-            "products": [dict(product) for product in products],
-            "category": category_name,
-            "count": len(products)
-        })
+        cache_key = f"products:category:{category_name}"
+        def build_payload():
+            query = """
+                SELECT p.*, c.name as category_name 
+                FROM products p 
+                LEFT JOIN categories c ON p.category_id = c.id 
+                WHERE (p.category_name = %s OR c.name = %s) AND p.status = 'active'
+                ORDER BY p.id
+            """
+            products = db.execute_query(query, (category_name, category_name), fetch=True)
+
+            return {
+                "success": True,
+                "products": [dict(product) for product in products],
+                "category": category_name,
+                "count": len(products)
+            }
+
+        payload = response_cache.get_or_set(cache_key, build_payload, ttl_seconds=30)
+
+        return jsonify(payload)
         
     except Exception as e:
         logger.error(f"Error fetching products for category {category_name}: {e}")
@@ -176,6 +203,9 @@ def create_product(current_user):
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            response_cache.invalidate("products:")
+            response_cache.invalidate("categories:")
+
             # Update category product count
             if category_id:
                 db.execute_query(
@@ -284,6 +314,8 @@ def update_product(current_user, product_id):
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            response_cache.invalidate("products:")
+            response_cache.invalidate("categories:")
             logger.info(f"✅ Admin {current_user['id']} updated product {product_id}")
             
             return jsonify({
@@ -318,6 +350,8 @@ def delete_product(current_user, product_id):
         result = db.execute_query(query, (product_id,), fetch=True)
         
         if result:
+            response_cache.invalidate("products:")
+            response_cache.invalidate("categories:")
             category_id = result[0]['category_id']
             
             # Update category product count

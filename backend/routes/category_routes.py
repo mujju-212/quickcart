@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
-from utils.database import db
-from utils.auth_middleware import admin_required
-from utils.input_validator import InputValidator
+from backend.utils.database import db
+from backend.utils.auth_middleware import admin_required
+from backend.utils.input_validator import InputValidator
+from backend.utils.response_cache import response_cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,29 +12,35 @@ category_bp = Blueprint('categories', __name__)
 def get_all_categories():
     """Get all categories with product count (user view - only non-empty categories)"""
     try:
-        # Get categories with count of in-stock products
-        query = """
-            SELECT 
-                c.*,
-                COUNT(p.id) as products_count
-            FROM categories c
-            LEFT JOIN products p ON c.id = p.category_id 
-                AND p.status = 'active' 
-                AND p.stock > 0
-            WHERE c.status = 'active'
-            GROUP BY c.id
-            ORDER BY c.position, c.id
-        """
-        categories = db.execute_query(query, fetch=True)
-        
-        # Filter out categories with no products
-        categories_with_products = [dict(cat) for cat in categories if cat['products_count'] > 0]
-        
-        return jsonify({
-            "success": True,
-            "categories": categories_with_products,
-            "count": len(categories_with_products)
-        })
+        cache_key = "categories:active:v1"
+        def build_payload():
+            # Get categories with count of in-stock products
+            query = """
+                SELECT 
+                    c.*,
+                    COUNT(p.id) as products_count
+                FROM categories c
+                LEFT JOIN products p ON c.id = p.category_id 
+                    AND p.status = 'active' 
+                    AND p.stock > 0
+                WHERE c.status = 'active'
+                GROUP BY c.id
+                ORDER BY c.position, c.id
+            """
+            categories = db.execute_query(query, fetch=True)
+
+            # Filter out categories with no products
+            categories_with_products = [dict(cat) for cat in categories if cat['products_count'] > 0]
+
+            return {
+                "success": True,
+                "categories": categories_with_products,
+                "count": len(categories_with_products)
+            }
+
+        payload = response_cache.get_or_set(cache_key, build_payload, ttl_seconds=45)
+
+        return jsonify(payload)
         
     except Exception as e:
         logger.error(f"Error fetching categories: {e}")
@@ -123,6 +130,8 @@ def create_category(current_user):
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            response_cache.invalidate("categories:")
+            response_cache.invalidate("products:")
             logger.info(f"✅ Admin {current_user['id']} created category: {name}")
             
             return jsonify({
@@ -178,6 +187,8 @@ def update_category(current_user, category_id):
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            response_cache.invalidate("categories:")
+            response_cache.invalidate("products:")
             return jsonify({
                 "success": True,
                 "category": dict(result[0]),
@@ -215,6 +226,8 @@ def delete_category(category_id):
         result = db.execute_query(query, (category_id,), fetch=True)
         
         if result:
+            response_cache.invalidate("categories:")
+            response_cache.invalidate("products:")
             return jsonify({
                 "success": True,
                 "message": "Category deleted successfully"

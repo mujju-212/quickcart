@@ -4,6 +4,8 @@ import os
 import logging
 import time
 import sys
+import threading
+from datetime import date
 
 # Add parent directory to Python path so we can import backend modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +26,7 @@ from backend.routes.analytics_routes import analytics_bp
 from backend.routes.review_routes import review_bp
 from backend.routes.report_routes import report_bp
 from backend.utils.database import db
+from backend.utils.response_cache import response_cache
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +58,91 @@ def create_app():
             logging.info("✅ Database connection successful")
         else:
             logging.error("❌ Database connection failed")
+
+    def prime_read_cache():
+        """Warm the most requested home-page payloads after startup."""
+        try:
+            categories_query = """
+                SELECT c.*, COUNT(p.id) as products_count
+                FROM categories c
+                LEFT JOIN products p ON c.id = p.category_id
+                    AND p.status = 'active'
+                    AND p.stock > 0
+                WHERE c.status = 'active'
+                GROUP BY c.id
+                ORDER BY c.position, c.id
+            """
+            categories = db.execute_query(categories_query, fetch=True)
+            categories_payload = {
+                "success": True,
+                "categories": [dict(cat) for cat in categories if cat['products_count'] > 0],
+                "count": len([cat for cat in categories if cat['products_count'] > 0]),
+            }
+            response_cache.set("categories:active:v1", categories_payload, ttl_seconds=45)
+
+            products_query = """
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.status = 'active' AND p.stock > 0
+                ORDER BY p.id
+            """
+            products = db.execute_query(products_query, fetch=True)
+            products_payload = {
+                "success": True,
+                "products": [dict(product) for product in products],
+                "count": len(products),
+            }
+            response_cache.set(
+                "products:list:v2:category=:search=:limit=:include_oos=False",
+                products_payload,
+                ttl_seconds=30,
+            )
+
+            banners_query = """
+                SELECT * FROM banners
+                WHERE status = 'active'
+                AND (start_date IS NULL OR start_date <= CURRENT_DATE)
+                AND (end_date IS NULL OR end_date >= CURRENT_DATE)
+                ORDER BY display_order, id
+            """
+            banners = db.execute_query(banners_query, fetch=True)
+            response_cache.set(
+                "banners:active:v1",
+                {
+                    "success": True,
+                    "banners": [dict(banner) for banner in banners],
+                    "count": len(banners),
+                },
+                ttl_seconds=60,
+            )
+
+            today = date.today().isoformat()
+            offers_query = """
+                SELECT id, title, description, code, discount_type, discount_value,
+                       min_order_value, max_discount_amount, image_url,
+                       start_date, end_date, offer_type
+                FROM offers
+                WHERE status = 'active'
+                  AND start_date <= %s
+                  AND end_date >= %s
+                  AND used_count < usage_limit
+                ORDER BY id ASC
+            """
+            offers = db.execute_query(offers_query, (today, today), fetch=True)
+            offers_payload = []
+            for offer in offers:
+                offer_dict = dict(offer)
+                if offer_dict.get('start_date'):
+                    offer_dict['start_date'] = offer_dict['start_date'].isoformat()
+                if offer_dict.get('end_date'):
+                    offer_dict['end_date'] = offer_dict['end_date'].isoformat()
+                offers_payload.append(offer_dict)
+            response_cache.set("offers:active:v1", offers_payload, ttl_seconds=45)
+
+            logging.info("✅ Hot API cache primed")
+        except Exception as cache_exc:
+            logging.warning(f"⚠️ Cache warmup skipped: {cache_exc}")
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -69,6 +157,9 @@ def create_app():
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(review_bp, url_prefix='/api/reviews')
     app.register_blueprint(report_bp, url_prefix='/api/reports')
+
+    # Prime cache in background so first user doesn't pay cold-query latency.
+    threading.Thread(target=prime_read_cache, daemon=True).start()
     
     # Add security headers
     @app.after_request
@@ -169,5 +260,6 @@ if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
         port=port,
-        debug=debug
+        debug=debug,
+        threaded=True,
     )

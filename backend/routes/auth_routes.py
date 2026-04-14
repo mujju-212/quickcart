@@ -1,12 +1,12 @@
 from flask import Blueprint, request, jsonify
 from services.sms_service import SMSService
 from services.email_service import EmailService
-from utils.otp_manager import OTPManager
-from utils.rate_limiter import RateLimiter
-from utils.input_validator import InputValidator
-from utils.auth_middleware import generate_token
-from utils.csrf_protection import CSRFProtection
-from utils.database import db
+from backend.utils.otp_manager import OTPManager
+from backend.utils.rate_limiter import RateLimiter
+from backend.utils.input_validator import InputValidator
+from backend.utils.auth_middleware import generate_token
+from backend.utils.csrf_protection import CSRFProtection
+from backend.utils.database import db
 import os
 
 # Create blueprint for authentication routes
