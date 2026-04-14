@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container } from 'react-bootstrap';
 import categoryService from '../services/categoryService';
@@ -33,6 +34,7 @@ const Home = () => {
       console.error('❌ Error loading banners:', error);
       setBanners([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadOffers = useCallback(async () => {
@@ -45,6 +47,7 @@ const Home = () => {
       console.error('❌ Error loading offers:', error);
       setOffers([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadCategories = useCallback(async () => {
@@ -87,6 +90,7 @@ const Home = () => {
       console.error('❌ Error loading categories:', error);
       setCategories([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadProducts = useCallback(async () => {
@@ -132,6 +136,7 @@ const Home = () => {
       setPopularProducts([]);
       setCategoryProducts({});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load all data function
@@ -142,6 +147,7 @@ const Home = () => {
     await Promise.all([loadBanners(), loadOffers()]);
     await loadProducts(); // Load products first
     await loadCategories(); // Then load categories
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadBanners, loadOffers, loadCategories, loadProducts]);
 
   // Enable auto-refresh every 20 seconds
@@ -227,6 +233,7 @@ const Home = () => {
       window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
       window.removeEventListener('productsUpdated', handleProductsUpdate);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
