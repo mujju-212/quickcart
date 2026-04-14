@@ -1,8 +1,12 @@
+import logging
+import threading
+from contextlib import contextmanager
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from contextlib import contextmanager
+from psycopg2.pool import ThreadedConnectionPool
+
 from config.config import Config
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,16 +17,55 @@ class Database:
     
     def __init__(self):
         self.connection_string = Config.DATABASE_URL
+        self.min_connections = Config.DB_POOL_MIN
+        self.max_connections = Config.DB_POOL_MAX
+        self.connect_timeout = Config.DB_CONNECT_TIMEOUT
+        self._pool = None
+        self._pool_lock = threading.Lock()
+
+    def _init_pool(self):
+        """Initialize connection pool lazily and thread-safely."""
+        if self._pool is not None:
+            return
+
+        with self._pool_lock:
+            if self._pool is not None:
+                return
+
+            self._pool = ThreadedConnectionPool(
+                minconn=self.min_connections,
+                maxconn=self.max_connections,
+                dsn=self.connection_string,
+                connect_timeout=self.connect_timeout,
+                application_name='quickcart_api',
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=5,
+            )
+            logger.info(
+                "✅ Database pool initialized (min=%s, max=%s)",
+                self.min_connections,
+                self.max_connections,
+            )
+
+    def close_pool(self):
+        """Close all pooled connections."""
+        if self._pool is not None:
+            self._pool.closeall()
+            self._pool = None
+            logger.info("✅ Database pool closed")
         
     @contextmanager
     def get_connection(self):
-        """Get database connection with context manager"""
+        """Get pooled database connection with context manager."""
+        self._init_pool()
+
         conn = None
         try:
-            conn = psycopg2.connect(
-                self.connection_string,
-                cursor_factory=RealDictCursor
-            )
+            conn = self._pool.getconn()
+            # Reset any aborted transaction state from previous usage.
+            conn.rollback()
             yield conn
         except Exception as e:
             if conn:
@@ -31,7 +74,7 @@ class Database:
             raise
         finally:
             if conn:
-                conn.close()
+                self._pool.putconn(conn)
     
     @contextmanager
     def get_cursor(self):

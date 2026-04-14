@@ -7,7 +7,7 @@ from flask import request, jsonify
 import jwt
 import os
 from datetime import datetime, timedelta
-from utils.database import db
+from backend.utils.database import db
 
 # 🔒 SECURITY: Enforce JWT secret key (no default in production)
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY')

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from utils.database import db
+from backend.utils.database import db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -242,7 +242,7 @@ def delete_user_address(address_id):
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
     """Update user details (admin only)"""
-    from utils.auth_middleware import admin_required
+    from backend.utils.auth_middleware import admin_required
     
     @admin_required
     def _update_user(admin_user):
@@ -301,7 +301,7 @@ def update_user(user_id):
 @user_bp.route('/<int:user_id>', methods=['GET'])
 def get_user(user_id):
     """Get user details by ID (admin only)"""
-    from utils.auth_middleware import admin_required
+    from backend.utils.auth_middleware import admin_required
     
     @admin_required
     def _get_user(admin_user):

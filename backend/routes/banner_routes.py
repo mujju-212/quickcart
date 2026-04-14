@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
-from utils.database import db
-from utils.auth_middleware import admin_required
+from backend.utils.database import db
+from backend.utils.auth_middleware import admin_required
+from backend.utils.response_cache import response_cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,20 +31,26 @@ def get_all_banners():
 def get_active_banners():
     """Get only active banners"""
     try:
-        query = """
-            SELECT * FROM banners 
-            WHERE status = 'active'
-            AND (start_date IS NULL OR start_date <= CURRENT_DATE)
-            AND (end_date IS NULL OR end_date >= CURRENT_DATE)
-            ORDER BY display_order, id
-        """
-        banners = db.execute_query(query, fetch=True)
-        
-        return jsonify({
-            "success": True,
-            "banners": [dict(banner) for banner in banners],
-            "count": len(banners)
-        })
+        cache_key = "banners:active:v1"
+        def build_payload():
+            query = """
+                SELECT * FROM banners 
+                WHERE status = 'active'
+                AND (start_date IS NULL OR start_date <= CURRENT_DATE)
+                AND (end_date IS NULL OR end_date >= CURRENT_DATE)
+                ORDER BY display_order, id
+            """
+            banners = db.execute_query(query, fetch=True)
+
+            return {
+                "success": True,
+                "banners": [dict(banner) for banner in banners],
+                "count": len(banners)
+            }
+
+        payload = response_cache.get_or_set(cache_key, build_payload, ttl_seconds=60)
+
+        return jsonify(payload)
         
     except Exception as e:
         logger.error(f"Error fetching active banners: {e}")
@@ -98,6 +105,7 @@ def create_banner(current_user):
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            response_cache.invalidate("banners:")
             return jsonify({
                 "success": True,
                 "banner": dict(result[0]),
@@ -155,6 +163,7 @@ def update_banner(current_user, banner_id):
         result = db.execute_query(query, params, fetch=True)
         
         if result:
+            response_cache.invalidate("banners:")
             return jsonify({
                 "success": True,
                 "banner": dict(result[0]),
@@ -176,6 +185,7 @@ def delete_banner(current_user, banner_id):
         result = db.execute_query(query, (banner_id,), fetch=True)
         
         if result:
+            response_cache.invalidate("banners:")
             return jsonify({
                 "success": True,
                 "message": "Banner deleted successfully"

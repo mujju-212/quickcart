@@ -8,8 +8,8 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from utils.database import db
-from utils.rate_limiter import RateLimiter
+from backend.utils.database import db
+from backend.utils.rate_limiter import RateLimiter
 
 def migrate():
     """Run migration to update rate limit tables"""

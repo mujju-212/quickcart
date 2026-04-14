@@ -6,7 +6,7 @@ Implements database-backed rate limiting to prevent abuse
 - General API rate limiting
 """
 from datetime import datetime, timedelta
-from utils.database import db
+from backend.utils.database import db
 from flask import request
 import logging
 

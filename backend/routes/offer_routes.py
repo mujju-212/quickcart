@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime, date
 from backend.utils.database import db
 from backend.utils.auth_middleware import admin_required
+from backend.utils.response_cache import response_cache
 
 offer_bp = Blueprint('offers', __name__)
 
@@ -38,27 +39,32 @@ def get_all_offers():
 def get_active_offers():
     """Get all active offers for customers"""
     try:
-        today = date.today().isoformat()
-        query = """
-            SELECT id, title, description, code, discount_type, discount_value,
-                   min_order_value, max_discount_amount, image_url,
-                   start_date, end_date, offer_type
-            FROM offers
-            WHERE status = 'active'
-              AND start_date <= %s
-              AND end_date >= %s
-              AND used_count < usage_limit
-            ORDER BY id ASC
-        """
-        offers = db.execute_query(query, (today, today), fetch=True)
-        
-        # Convert date objects to strings
-        for offer in offers:
-            if offer.get('start_date'):
-                offer['start_date'] = offer['start_date'].isoformat()
-            if offer.get('end_date'):
-                offer['end_date'] = offer['end_date'].isoformat()
-        
+        cache_key = "offers:active:v1"
+        def build_payload():
+            today = date.today().isoformat()
+            query = """
+                SELECT id, title, description, code, discount_type, discount_value,
+                       min_order_value, max_discount_amount, image_url,
+                       start_date, end_date, offer_type
+                FROM offers
+                WHERE status = 'active'
+                  AND start_date <= %s
+                  AND end_date >= %s
+                  AND used_count < usage_limit
+                ORDER BY id ASC
+            """
+            offers = db.execute_query(query, (today, today), fetch=True)
+
+            # Convert date objects to strings
+            for offer in offers:
+                if offer.get('start_date'):
+                    offer['start_date'] = offer['start_date'].isoformat()
+                if offer.get('end_date'):
+                    offer['end_date'] = offer['end_date'].isoformat()
+
+            return offers
+
+        offers = response_cache.get_or_set(cache_key, build_payload, ttl_seconds=45)
         return jsonify(offers), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -195,6 +201,8 @@ def create_offer(current_user):
             data.get('applicable_categories', 'all'),
             data.get('applicable_products', 'all')
         ), fetch=True)
+
+        response_cache.invalidate("offers:")
         
         return jsonify({'message': 'Offer created successfully', 'id': result[0]['id']}), 201
     except Exception as e:
@@ -235,6 +243,8 @@ def update_offer(current_user, offer_id):
             data.get('applicable_products', 'all'),
             offer_id
         ))
+
+        response_cache.invalidate("offers:")
         
         return jsonify({'message': 'Offer updated successfully'}), 200
     except Exception as e:
@@ -247,6 +257,7 @@ def delete_offer(current_user, offer_id):
     try:
         query = "DELETE FROM offers WHERE id = %s"
         db.execute_query(query, (offer_id,))
+        response_cache.invalidate("offers:")
         return jsonify({'message': 'Offer deleted successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -262,6 +273,7 @@ def increment_usage(offer_id):
             RETURNING used_count
         """
         result = db.execute_query(query, (offer_id,), fetch=True)
+        response_cache.invalidate("offers:")
         return jsonify({'used_count': result[0]['used_count']}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

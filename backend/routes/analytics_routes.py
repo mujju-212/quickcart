@@ -4,8 +4,8 @@ Provides real-time statistics and insights from the database
 """
 from flask import Blueprint, jsonify, request
 from datetime import datetime, timedelta
-from utils.database import db
-from utils.auth_middleware import admin_required
+from backend.utils.database import db
+from backend.utils.auth_middleware import admin_required
 
 analytics_bp = Blueprint('analytics', __name__)  # Removed url_prefix (set in app.py)
 
