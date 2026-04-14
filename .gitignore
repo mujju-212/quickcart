@@ -87,3 +87,7 @@ temp/
 
 # Documentation folder
 docs/
+
+# Local deployment/app metadata
+.vercel/
+**/.expo/
