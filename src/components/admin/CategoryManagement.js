@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Modal, Form, Alert, Badge } from 'react-bootstrap';
 import categoryService from '../../services/categoryService';
