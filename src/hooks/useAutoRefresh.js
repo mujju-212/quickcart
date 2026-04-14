@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'react';
  */
 const useAutoRefresh = (callback, interval = 20000, enabled = true) => {
   const savedCallback = useRef();
+  const inFlight = useRef(false);
 
   // Remember the latest callback
   useEffect(() => {
@@ -20,9 +21,21 @@ const useAutoRefresh = (callback, interval = 20000, enabled = true) => {
       return;
     }
 
-    const tick = () => {
-      if (savedCallback.current) {
-        savedCallback.current();
+    const tick = async () => {
+      if (!savedCallback.current || inFlight.current) {
+        return;
+      }
+
+      // Skip periodic refresh when tab is not visible to reduce DB load.
+      if (typeof document !== 'undefined' && document.hidden) {
+        return;
+      }
+
+      inFlight.current = true;
+      try {
+        await savedCallback.current();
+      } finally {
+        inFlight.current = false;
       }
     };
 

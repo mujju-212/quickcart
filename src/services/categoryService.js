@@ -1,3 +1,5 @@
+import cacheUtils from '../utils/cacheUtils';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class CategoryService {
@@ -7,9 +9,6 @@ class CategoryService {
     this.isDevelopmentMode = process.env.NODE_ENV === 'development' && 
                              process.env.REACT_APP_USE_MOCK_DATA !== 'false';
     this.backendAvailable = false; // Track if backend is available
-    
-    // Clear any old localStorage data to ensure we use API
-    this.clearOldData();
   }
 
   clearOldData() {
@@ -139,28 +138,16 @@ class CategoryService {
   }
 
   async getAllCategories() {
-    // Always try API first, regardless of development mode
     try {
-      const response = await this.makeRequest('/categories');
-      this.backendAvailable = true;
-      console.log('🌐 Successfully loaded categories from API:', response.categories?.length || 0, 'categories');
-      return response.categories || [];
+      return await cacheUtils.getOrFetch('categories:all', async () => {
+        const response = await this.makeRequest('/categories');
+        this.backendAvailable = true;
+        return response.categories || [];
+      }, 60 * 1000);
     } catch (error) {
       this.backendAvailable = false;
-      console.log('⚠️ API call failed, falling back to localStorage:', error.message);
-      
-      // Fallback to localStorage data
-      const storedCategories = localStorage.getItem('categories');
-      if (storedCategories && storedCategories !== 'undefined') {
-        console.log('📦 Using localStorage categories');
-        return JSON.parse(storedCategories);
-      }
-      
-      // If no localStorage data, initialize with defaults
-      console.log('🔧 Initializing default categories');
-      this.initializeData();
-      const defaultCategories = localStorage.getItem('categories');
-      return defaultCategories ? JSON.parse(defaultCategories) : [];
+      console.error('Failed to load categories:', error);
+      return [];
     }
   }
 
@@ -176,15 +163,11 @@ class CategoryService {
 
   async getActiveCategories() {
     try {
-      console.log('🌐 Calling categories API...');
-      const response = await this.makeRequest('/categories');
-      console.log('✅ Categories API response:', response);
-      return response; // Return full response object
+      return await cacheUtils.getOrFetch('categories:active', async () => {
+        return this.makeRequest('/categories');
+      }, 60 * 1000);
     } catch (error) {
-      console.error('❌ Error fetching active categories from API:', error);
-      console.error('❌ Falling back to empty array - no localStorage fallback');
-      // Don't fall back to localStorage or initialize defaults
-      // If API fails, return empty result
+      console.error('Failed to load active categories:', error);
       return { success: false, categories: [], error: error.message };
     }
   }
@@ -211,6 +194,8 @@ class CategoryService {
       
       this.backendAvailable = true;
       console.log('✅ Category created successfully:', response);
+      cacheUtils.invalidatePattern('categories:');
+      cacheUtils.invalidatePattern('products:');
       
       // Trigger custom event to notify other components
       this.triggerCategoriesUpdate();
@@ -233,6 +218,8 @@ class CategoryService {
       
       this.backendAvailable = true;
       console.log('✅ Category updated successfully:', response);
+      cacheUtils.invalidatePattern('categories:');
+      cacheUtils.invalidatePattern('products:');
       
       // Trigger custom event to notify other components
       this.triggerCategoriesUpdate();
@@ -254,6 +241,8 @@ class CategoryService {
       
       this.backendAvailable = true;
       console.log('✅ Category deleted successfully:', response);
+      cacheUtils.invalidatePattern('categories:');
+      cacheUtils.invalidatePattern('products:');
       
       // Trigger custom event to notify other components
       this.triggerCategoriesUpdate();

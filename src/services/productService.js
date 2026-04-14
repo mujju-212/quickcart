@@ -8,9 +8,6 @@ class ProductService {
     this.isDevelopmentMode = process.env.NODE_ENV === 'development' && 
                              process.env.REACT_APP_USE_MOCK_DATA !== 'false';
     this.backendAvailable = false;
-    
-    // Clear any old localStorage data to ensure we use API
-    this.clearOldData();
   }
 
   clearOldData() {

@@ -1,3 +1,5 @@
+import cacheUtils from '../utils/cacheUtils';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class OffersService {
@@ -28,17 +30,23 @@ class OffersService {
   }
 
   async getAllOffers() {
-    return this.makeRequest('/offers');
+    try {
+      return await cacheUtils.getOrFetch('offers:all', async () => {
+        return this.makeRequest('/offers');
+      }, 60 * 1000);
+    } catch (error) {
+      console.error('Error loading offers:', error);
+      return [];
+    }
   }
 
   async getActiveOffers() {
     try {
-      console.log('🎁 Loading active offers from API...');
-      const offers = await this.makeRequest('/offers/active');
-      console.log('🎁 Active offers loaded:', offers);
-      return offers;
+      return await cacheUtils.getOrFetch('offers:active', async () => {
+        return this.makeRequest('/offers/active');
+      }, 60 * 1000);
     } catch (error) {
-      console.error('❌ Error loading offers:', error);
+      console.error('Error loading active offers:', error);
       return [];
     }
   }
@@ -55,29 +63,37 @@ class OffersService {
   }
 
   async createOffer(offerData) {
-    return this.makeRequest('/offers', {
+    const result = await this.makeRequest('/offers', {
       method: 'POST',
       body: JSON.stringify(offerData)
     });
+    cacheUtils.invalidatePattern('offers:');
+    return result;
   }
 
   async updateOffer(offerId, updateData) {
-    return this.makeRequest(`/offers/${offerId}`, {
+    const result = await this.makeRequest(`/offers/${offerId}`, {
       method: 'PUT',
       body: JSON.stringify(updateData)
     });
+    cacheUtils.invalidatePattern('offers:');
+    return result;
   }
 
   async deleteOffer(offerId) {
-    return this.makeRequest(`/offers/${offerId}`, {
+    const result = await this.makeRequest(`/offers/${offerId}`, {
       method: 'DELETE'
     });
+    cacheUtils.invalidatePattern('offers:');
+    return result;
   }
 
   async incrementUsage(offerId) {
-    return this.makeRequest(`/offers/${offerId}/increment`, {
+    const result = await this.makeRequest(`/offers/${offerId}/increment`, {
       method: 'POST'
     });
+    cacheUtils.invalidatePattern('offers:');
+    return result;
   }
 }
 

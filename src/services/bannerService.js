@@ -1,3 +1,5 @@
+import cacheUtils from '../utils/cacheUtils';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class BannerService {
@@ -34,8 +36,10 @@ class BannerService {
 
   async getAllBanners() {
     try {
-      const response = await this.makeRequest('/banners');
-      return response.banners || [];
+      return await cacheUtils.getOrFetch('banners:all', async () => {
+        const response = await this.makeRequest('/banners');
+        return response.banners || [];
+      }, 60 * 1000);
     } catch (error) {
       console.error('Error fetching banners:', error);
       return [];
@@ -44,10 +48,10 @@ class BannerService {
 
   async getActiveBanners() {
     try {
-      console.log('🎨 Fetching active banners from API...');
-      const response = await this.makeRequest('/banners/active');
-      console.log('🎨 Active banners response:', response);
-      return response.banners || [];
+      return await cacheUtils.getOrFetch('banners:active', async () => {
+        const response = await this.makeRequest('/banners/active');
+        return response.banners || [];
+      }, 60 * 1000);
     } catch (error) {
       console.error('Error fetching active banners:', error);
       return [];
@@ -74,6 +78,7 @@ class BannerService {
         body: JSON.stringify(payload)
       });
 
+      cacheUtils.invalidatePattern('banners:');
       console.log('✅ Banner created:', response);
       return response.banner;
     } catch (error) {
@@ -102,6 +107,7 @@ class BannerService {
         body: JSON.stringify(payload)
       });
 
+      cacheUtils.invalidatePattern('banners:');
       console.log('✅ Banner updated:', response);
       return response.banner;
     } catch (error) {
@@ -117,6 +123,7 @@ class BannerService {
         method: 'DELETE'
       });
 
+      cacheUtils.invalidatePattern('banners:');
       console.log('✅ Banner deleted');
       return response.success;
     } catch (error) {
