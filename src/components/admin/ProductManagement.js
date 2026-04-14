@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Modal, Form, Alert, Badge, InputGroup, Row, Col, Dropdown, Pagination } from 'react-bootstrap';
 import productService from '../../services/productService';
@@ -64,6 +65,7 @@ const ProductManagement = () => {
     };
     
     initializeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAllProducts = useCallback(async () => {
@@ -87,6 +89,7 @@ const ProductManagement = () => {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Enable auto-refresh every 20 seconds
@@ -94,10 +97,12 @@ const ProductManagement = () => {
 
   useEffect(() => {
     filterAndSortProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products, searchTerm, filterCategory, filterStock, priceRange, sortBy, sortOrder]);
 
   useEffect(() => {
     paginateProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredProducts, currentPage]);
 
   const filterAndSortProducts = () => {

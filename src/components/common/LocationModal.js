@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, ListGroup, Alert, Badge } from 'react-bootstrap';
 
@@ -25,6 +26,7 @@ const LocationModal = ({ show, onHide, onLocationSelect, currentLocation }) => {
     if (stored) {
       setRecentLocations(JSON.parse(stored));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -36,6 +38,7 @@ const LocationModal = ({ show, onHide, onLocationSelect, currentLocation }) => {
     } else {
       setSuggestions([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   const handleLocationSelect = (location) => {

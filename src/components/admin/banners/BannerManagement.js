@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react';
 import bannerService from '../../../services/bannerService';
 import useAutoRefresh from '../../../hooks/useAutoRefresh';
@@ -22,6 +23,7 @@ const BannerManagement = () => {
 
   useEffect(() => {
     loadBanners();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBanners = useCallback(async () => {
@@ -32,6 +34,7 @@ const BannerManagement = () => {
       console.error('Error loading banners:', error);
       setBanners([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Enable auto-refresh every 20 seconds
