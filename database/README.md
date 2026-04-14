@@ -33,15 +33,13 @@ DATABASE_URL=postgresql://your_username:your_password@localhost:5432/blink_baske
 Run the setup script to automatically create the database and populate it:
 
 ```bash
-cd database
-python setup.py
+python init_db.py
 ```
 
 This script will:
 - Create the database if it doesn't exist
-- Execute `schema.sql` to create all tables
-- Execute `insert_products.sql` to populate sample data
-- Test the database connection
+- Execute `schema.sql` to create/reset tables
+- Insert base categories, admin row, offers, and banners from `schema.sql`
 
 ### Option 2: Manual Setup
 
@@ -53,11 +51,6 @@ This script will:
 2. **Create Tables:**
    ```bash
    psql -U your_username -d blink_basket -f schema.sql
-   ```
-
-3. **Insert Sample Data:**
-   ```bash
-   psql -U your_username -d blink_basket -f insert_products.sql
    ```
 
 ## Database Schema
@@ -82,10 +75,12 @@ This script will:
 
 ## Sample Data
 
-The `insert_products.sql` file includes:
-- **8 Categories** - Fruits & Vegetables, Dairy, Bakery, etc.
-- **60+ Products** - Real product data with prices and descriptions
-- **Proper Categorization** - Products linked to appropriate categories
+The `schema.sql` file includes base seed records:
+- Default categories
+- Default admin user row
+- Default banners and offers
+
+For larger sample datasets, use additional scripts like `seed_all_data.py` after schema setup.
 
 ## Testing the Database
 
@@ -131,7 +126,7 @@ psql -U your_username blink_basket < backup.sql
 ### Reset Database
 ```bash
 dropdb blink_basket
-python setup.py
+python init_db.py
 ```
 
 ## Performance Tips
