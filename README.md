@@ -207,6 +207,14 @@ quickcart/
    npm start
    ```
 
+   **Production backend command (recommended for concurrent users):**
+   ```bash
+   cd backend
+   gunicorn --bind 0.0.0.0:$PORT --workers 3 --threads 4 --timeout 120 app:app
+   ```
+
+   Tune DB pooling with env vars: `DB_POOL_MIN`, `DB_POOL_MAX`, `DB_CONNECT_TIMEOUT`.
+
 6. **Open your browser**
    ```
    http://localhost:3000
