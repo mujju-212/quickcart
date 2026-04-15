@@ -10,15 +10,38 @@ from backend.utils.response_cache import response_cache
 
 offer_bp = Blueprint('offers', __name__)
 
+
+def _has_applicable_products_column():
+    """Return True when offers.applicable_products exists in the current database."""
+    try:
+        row = db.execute_query_one(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'offers'
+                  AND column_name = 'applicable_products'
+            ) AS exists
+            """
+        )
+        return bool(row and row.get('exists'))
+    except Exception:
+        # Fail closed to the legacy schema path.
+        return False
+
 @offer_bp.route('', methods=['GET'])
 def get_all_offers():
     """Get all offers (admin only)"""
     try:
-        query = """
+        has_applicable_products = _has_applicable_products_column()
+        select_applicable_products = ", applicable_products" if has_applicable_products else ""
+
+        query = f"""
             SELECT id, title, description, code, discount_type, discount_value,
                    min_order_value, max_discount_amount, image_url, status,
                    start_date, end_date, usage_limit, used_count,
-                   applicable_categories, applicable_products, offer_type, created_at
+                   applicable_categories{select_applicable_products}, offer_type, created_at
             FROM offers
             ORDER BY created_at DESC
         """
@@ -26,6 +49,8 @@ def get_all_offers():
         
         # Convert date objects to strings
         for offer in offers:
+            if not has_applicable_products:
+                offer['applicable_products'] = 'all'
             if offer.get('start_date'):
                 offer['start_date'] = offer['start_date'].isoformat()
             if offer.get('end_date'):
@@ -73,11 +98,14 @@ def get_active_offers():
 def get_offer(offer_id):
     """Get a specific offer by ID"""
     try:
-        query = """
+        has_applicable_products = _has_applicable_products_column()
+        select_applicable_products = ", applicable_products" if has_applicable_products else ""
+
+        query = f"""
             SELECT id, title, description, code, discount_type, discount_value,
                    min_order_value, max_discount_amount, image_url, status,
                    start_date, end_date, usage_limit, used_count,
-                   applicable_categories, offer_type, created_at
+                   applicable_categories{select_applicable_products}, offer_type, created_at
             FROM offers
             WHERE id = %s
         """
@@ -87,6 +115,8 @@ def get_offer(offer_id):
             return jsonify({'error': 'Offer not found'}), 404
         
         offer = offers[0]
+        if not has_applicable_products:
+            offer['applicable_products'] = 'all'
         if offer.get('start_date'):
             offer['start_date'] = offer['start_date'].isoformat()
         if offer.get('end_date'):
@@ -174,33 +204,64 @@ def create_offer(current_user):
     """Create a new offer (admin only)"""
     try:
         data = request.json
-        
-        query = """
-            INSERT INTO offers (title, description, code, discount_type, discount_value,
-                              min_order_value, max_discount_amount, image_url, status,
-                              start_date, end_date, usage_limit, offer_type, 
-                              applicable_categories, applicable_products)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """
-        
-        result = db.execute_query(query, (
-            data['title'],
-            data.get('description', ''),
-            data['code'].upper(),
-            data['discount_type'],
-            data['discount_value'],
-            data.get('min_order_value', 0),
-            data.get('max_discount_amount'),
-            data.get('image_url', ''),
-            data.get('status', 'active'),
-            data['start_date'],
-            data['end_date'],
-            data.get('usage_limit', 1000),
-            data.get('offer_type', 'general'),
-            data.get('applicable_categories', 'all'),
-            data.get('applicable_products', 'all')
-        ), fetch=True)
+
+        has_applicable_products = _has_applicable_products_column()
+
+        if has_applicable_products:
+            query = """
+                INSERT INTO offers (title, description, code, discount_type, discount_value,
+                                  min_order_value, max_discount_amount, image_url, status,
+                                  start_date, end_date, usage_limit, offer_type,
+                                  applicable_categories, applicable_products)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """
+
+            params = (
+                data['title'],
+                data.get('description', ''),
+                data['code'].upper(),
+                data['discount_type'],
+                data['discount_value'],
+                data.get('min_order_value', 0),
+                data.get('max_discount_amount'),
+                data.get('image_url', ''),
+                data.get('status', 'active'),
+                data['start_date'],
+                data['end_date'],
+                data.get('usage_limit', 1000),
+                data.get('offer_type', 'general'),
+                data.get('applicable_categories', 'all'),
+                data.get('applicable_products', 'all')
+            )
+        else:
+            query = """
+                INSERT INTO offers (title, description, code, discount_type, discount_value,
+                                  min_order_value, max_discount_amount, image_url, status,
+                                  start_date, end_date, usage_limit, offer_type,
+                                  applicable_categories)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """
+
+            params = (
+                data['title'],
+                data.get('description', ''),
+                data['code'].upper(),
+                data['discount_type'],
+                data['discount_value'],
+                data.get('min_order_value', 0),
+                data.get('max_discount_amount'),
+                data.get('image_url', ''),
+                data.get('status', 'active'),
+                data['start_date'],
+                data['end_date'],
+                data.get('usage_limit', 1000),
+                data.get('offer_type', 'general'),
+                data.get('applicable_categories', 'all')
+            )
+
+        result = db.execute_query(query, params, fetch=True)
 
         response_cache.invalidate("offers:")
         
@@ -214,35 +275,67 @@ def update_offer(current_user, offer_id):
     """Update an existing offer (admin only)"""
     try:
         data = request.json
-        
-        query = """
-            UPDATE offers
-            SET title = %s, description = %s, code = %s, discount_type = %s,
-                discount_value = %s, min_order_value = %s, max_discount_amount = %s,
-                image_url = %s, status = %s, start_date = %s, end_date = %s,
-                usage_limit = %s, offer_type = %s, applicable_categories = %s,
-                applicable_products = %s
-            WHERE id = %s
-        """
-        
-        db.execute_query(query, (
-            data['title'],
-            data.get('description', ''),
-            data['code'].upper(),
-            data['discount_type'],
-            data['discount_value'],
-            data.get('min_order_value', 0),
-            data.get('max_discount_amount'),
-            data.get('image_url', ''),
-            data.get('status', 'active'),
-            data['start_date'],
-            data['end_date'],
-            data.get('usage_limit', 1000),
-            data.get('offer_type', 'general'),
-            data.get('applicable_categories', 'all'),
-            data.get('applicable_products', 'all'),
-            offer_id
-        ))
+
+        has_applicable_products = _has_applicable_products_column()
+
+        if has_applicable_products:
+            query = """
+                UPDATE offers
+                SET title = %s, description = %s, code = %s, discount_type = %s,
+                    discount_value = %s, min_order_value = %s, max_discount_amount = %s,
+                    image_url = %s, status = %s, start_date = %s, end_date = %s,
+                    usage_limit = %s, offer_type = %s, applicable_categories = %s,
+                    applicable_products = %s
+                WHERE id = %s
+            """
+
+            params = (
+                data['title'],
+                data.get('description', ''),
+                data['code'].upper(),
+                data['discount_type'],
+                data['discount_value'],
+                data.get('min_order_value', 0),
+                data.get('max_discount_amount'),
+                data.get('image_url', ''),
+                data.get('status', 'active'),
+                data['start_date'],
+                data['end_date'],
+                data.get('usage_limit', 1000),
+                data.get('offer_type', 'general'),
+                data.get('applicable_categories', 'all'),
+                data.get('applicable_products', 'all'),
+                offer_id
+            )
+        else:
+            query = """
+                UPDATE offers
+                SET title = %s, description = %s, code = %s, discount_type = %s,
+                    discount_value = %s, min_order_value = %s, max_discount_amount = %s,
+                    image_url = %s, status = %s, start_date = %s, end_date = %s,
+                    usage_limit = %s, offer_type = %s, applicable_categories = %s
+                WHERE id = %s
+            """
+
+            params = (
+                data['title'],
+                data.get('description', ''),
+                data['code'].upper(),
+                data['discount_type'],
+                data['discount_value'],
+                data.get('min_order_value', 0),
+                data.get('max_discount_amount'),
+                data.get('image_url', ''),
+                data.get('status', 'active'),
+                data['start_date'],
+                data['end_date'],
+                data.get('usage_limit', 1000),
+                data.get('offer_type', 'general'),
+                data.get('applicable_categories', 'all'),
+                offer_id
+            )
+
+        db.execute_query(query, params)
 
         response_cache.invalidate("offers:")
         
