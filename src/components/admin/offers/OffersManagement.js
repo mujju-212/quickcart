@@ -35,6 +35,8 @@ const OffersManagement = () => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [feedback, setFeedback] = useState({ show: false, type: 'success', message: '' });
+  const [pendingDeleteOfferId, setPendingDeleteOfferId] = useState(null);
 
   // Filter categories based on search
   const filteredCategories = categories.filter(cat =>
@@ -92,6 +94,10 @@ const OffersManagement = () => {
     }
   }, []);
 
+  const showFeedback = (type, message) => {
+    setFeedback({ show: true, type, message });
+  };
+
   // Load all data function
   const loadAllData = useCallback(async () => {
     console.log('🔄 Refreshing offers data...');
@@ -105,6 +111,14 @@ const OffersManagement = () => {
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
+
+  useEffect(() => {
+    if (!feedback.show) return undefined;
+    const timer = setTimeout(() => {
+      setFeedback(prev => ({ ...prev, show: false }));
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [feedback.show, feedback.message]);
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
@@ -256,7 +270,7 @@ const OffersManagement = () => {
     e.preventDefault();
     try {
       if (!formData.title.trim() || !formData.code.trim()) {
-        alert('Title and code are required');
+        showFeedback('danger', 'Title and code are required');
         return;
       }
       
@@ -280,13 +294,13 @@ const OffersManagement = () => {
       };
 
       await offersService.createOffer(offerData);
-      alert('Offer created successfully!');
+      showFeedback('success', 'Offer created successfully!');
       resetForm();
       setShowAddModal(false);
       loadOffers();
     } catch (error) {
       console.error('Error creating offer:', error);
-      alert('Failed to create offer: ' + error.message);
+      showFeedback('danger', 'Failed to create offer: ' + error.message);
     }
   };
 
@@ -339,7 +353,7 @@ const OffersManagement = () => {
     e.preventDefault();
     try {
       if (!formData.title.trim() || !formData.code.trim()) {
-        alert('Title and code are required');
+        showFeedback('danger', 'Title and code are required');
         return;
       }
       
@@ -363,28 +377,36 @@ const OffersManagement = () => {
       };
 
       await offersService.updateOffer(editingOffer.id, offerData);
-      alert('Offer updated successfully!');
+      showFeedback('success', 'Offer updated successfully!');
       resetForm();
       setShowEditModal(false);
       setEditingOffer(null);
       loadOffers();
     } catch (error) {
       console.error('Error updating offer:', error);
-      alert('Failed to update offer: ' + error.message);
+      showFeedback('danger', 'Failed to update offer: ' + error.message);
     }
   };
 
-  const handleDeleteOffer = async (offerId) => {
-    if (window.confirm('Are you sure you want to delete this offer?')) {
-      try {
-        await offersService.deleteOffer(offerId);
-        alert('Offer deleted successfully!');
-        loadOffers();
-      } catch (error) {
-        console.error('Error deleting offer:', error);
-        alert('Failed to delete offer: ' + error.message);
-      }
+  const handleDeleteOffer = (offerId) => {
+    setPendingDeleteOfferId(offerId);
+  };
+
+  const confirmDeleteOffer = async () => {
+    if (!pendingDeleteOfferId) return;
+    try {
+      await offersService.deleteOffer(pendingDeleteOfferId);
+      showFeedback('success', 'Offer deleted successfully!');
+      setPendingDeleteOfferId(null);
+      loadOffers();
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+      showFeedback('danger', 'Failed to delete offer: ' + error.message);
     }
+  };
+
+  const cancelDeleteOffer = () => {
+    setPendingDeleteOfferId(null);
   };
 
   const toggleOfferStatus = async (offerId) => {
@@ -392,10 +414,11 @@ const OffersManagement = () => {
     const newStatus = offer.status === 'active' ? 'inactive' : 'active';
     try {
       await offersService.updateOffer(offerId, { status: newStatus });
+      showFeedback('success', `Offer ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
       loadOffers();
     } catch (error) {
       console.error('Error updating offer status:', error);
-      alert('Failed to update offer status: ' + error.message);
+      showFeedback('danger', 'Failed to update offer status: ' + error.message);
     }
   };
 
@@ -444,6 +467,34 @@ const OffersManagement = () => {
           <i className="fas fa-plus me-2"></i>Add Offer
         </button>
       </div>
+
+      {feedback.show && (
+        <div className={`alert alert-${feedback.type} alert-dismissible fade show`} role="alert">
+          {feedback.message}
+          <button
+            type="button"
+            className="btn-close"
+            aria-label="Close"
+            onClick={() => setFeedback(prev => ({ ...prev, show: false }))}
+          ></button>
+        </div>
+      )}
+
+      {pendingDeleteOfferId && (
+        <div className="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+          <span>
+            Are you sure you want to delete this offer?
+          </span>
+          <div className="d-flex gap-2">
+            <button type="button" className="btn btn-sm btn-secondary" onClick={cancelDeleteOffer}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-sm btn-danger" onClick={confirmDeleteOffer}>
+              Yes, Delete
+            </button>
+          </div>
+        </div>
+      )}
       
       <div className="row">
         <div className="col-12">
