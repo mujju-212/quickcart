@@ -4,6 +4,7 @@ Provides real-time statistics and insights from the database
 """
 from flask import Blueprint, jsonify, request
 from datetime import datetime, timedelta
+from psycopg2.extras import RealDictCursor
 from backend.utils.database import db
 from backend.utils.auth_middleware import admin_required
 
@@ -21,7 +22,7 @@ def get_dashboard_stats(admin_user):
     """
     try:
         with db.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # 1. Total Orders
             cursor.execute('SELECT COUNT(*) as count FROM orders')
@@ -243,7 +244,7 @@ def get_revenue_chart_data(admin_user):
         days = period_map.get(period, 7)
         
         with db.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # For 7 days, show daily data
             if period == '7d':
@@ -365,7 +366,7 @@ def get_product_performance(admin_user):
     """Get detailed product performance metrics"""
     try:
         with db.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Fixed: oi.price -> oi.product_price, use total_price
             cursor.execute('''
@@ -420,7 +421,7 @@ def get_category_performance(admin_user):
     """Get category-wise performance metrics"""
     try:
         with db.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             cursor.execute('''
                 SELECT 
@@ -469,7 +470,7 @@ def get_performance_metrics(admin_user):
     """Get real-time performance metrics"""
     try:
         with db.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Today's orders count
             cursor.execute('''
@@ -608,7 +609,7 @@ def get_all_users(admin_user):
     """Get all users with their order statistics"""
     try:
         with db.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Get all users with their order statistics (including admins)
             cursor.execute("""

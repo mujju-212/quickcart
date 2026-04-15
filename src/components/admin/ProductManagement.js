@@ -32,6 +32,13 @@ const ProductManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const tableHeaderCellStyle = {
+    backgroundColor: '#f8f9fa',
+    color: '#212529',
+    fontWeight: 700,
+    borderColor: '#dee2e6'
+  };
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -581,15 +588,15 @@ const ProductManagement = () => {
           {/* Products Table */}
           <div className="table-responsive">
             <Table striped bordered hover>
-              <thead className="table-dark">
+              <thead>
                 <tr>
-                  <th>Image</th>
-                  <th>Product Name</th>
-                  <th>Category</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th style={tableHeaderCellStyle}>Image</th>
+                  <th style={tableHeaderCellStyle}>Product Name</th>
+                  <th style={tableHeaderCellStyle}>Category</th>
+                  <th style={tableHeaderCellStyle}>Price</th>
+                  <th style={tableHeaderCellStyle}>Stock</th>
+                  <th style={tableHeaderCellStyle}>Status</th>
+                  <th style={tableHeaderCellStyle}>Actions</th>
                 </tr>
               </thead>
               <tbody>
